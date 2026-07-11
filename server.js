@@ -9,7 +9,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const APP_ID  = process.env.ADZUNA_APP_ID;
 const APP_KEY = process.env.ADZUNA_APP_KEY;
 
-/* ---------- ZAPYTANIA PER BRANŻA (różnorodność ofert) ---------- */
+/* ---------- ZAPYTANIA PER BRANŻA ---------- */
 const QUERIES = [
   'magazynier', 'kierowca', 'sprzedawca kasjer', 'kucharz kelner',
   'opiekun pielęgniarka', 'elektryk spawacz', 'operator produkcji',
@@ -20,8 +20,10 @@ const QUERIES = [
 /* ---------- SŁOWNIK BAZOWY ---------- */
 const SKILL_DEFS = {
   'IT i programowanie': {
-    'Python': ['python'], 'JavaScript': ['javascript', 'react', 'node.js'],
-    'SQL': ['sql', 'baz danych'], 'Excel': ['excel'],
+    'Python': ['python'],
+    'JavaScript': ['javascript', 'react', 'node.js'],
+    'SQL': ['sql', 'baz danych'],
+    'Excel': ['excel'],
     'Helpdesk': ['helpdesk', 'wsparcie it', 'service desk'],
     'Testowanie oprogramowania': ['tester', 'testowani', 'testów'],
   },
@@ -77,11 +79,13 @@ const AUTO_CAT = 'Wykryte automatycznie 🤖';
 
 /* ---------- AUTO-WYKRYWANIE NOWYCH KOMPETENCJI ---------- */
 const CUE = /(?:znajomość|znajomości|obsługa|obsługi|uprawnienia|uprawnień|kurs|certyfikat|licencja|umiejętność|doświadczenie w|biegłość w)\s+([a-ząćęłńóśźż0-9#+][a-ząćęłńóśźż0-9#+./-]*(?:\s+[a-ząćęłńóśźż0-9#+][a-ząćęłńóśźż0-9#+./-]*){0,2})/gi;
+
 const STOP = new Set(('i,oraz,w,we,z,ze,na,do,od,po,za,o,u,dla,przy,pod,jest,są,lub,albo,nie,się,' +
   'pracy,pracę,praca,firmie,firmy,osoby,osób,godzin,umowy,mile,widziane,widziana,min,itp,np,tym,' +
   'zakresu,zakresie,obszarze,poziomie,stopniu,warunkiem,atutem,plusem,wymagana,wymagane,dobra,dobrej,bardzo').split(','));
-const MIN_OFFERS = 5;   // fraza musi wystąpić w min. tylu ofertach
-const MAX_AUTO   = 30;  // max liczba auto-kompetencji
+
+const MIN_OFFERS = 5;
+const MAX_AUTO   = 30;
 
 function cleanPhrase(p) {
   let words = p.toLowerCase().trim().split(/\s+/);
@@ -93,19 +97,24 @@ function cleanPhrase(p) {
 
 function mineSkills(texts) {
   const known = new Set();
-  for (const skills of Object.values(SKILL_DEFS))
-    for (const kws of Object.values(skills)) kws.forEach(k => known.add(k));
+  for (const skills of Object.values(SKILL_DEFS)) {
+    for (const kws of Object.values(skills)) {
+      kws.forEach(k => known.add(k));
+    }
+  }
 
   const freq = {};
   for (const text of texts) {
     const inThis = new Set();
     for (const m of text.toLowerCase().matchAll(CUE)) {
       const p = cleanPhrase(m<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>);
-      if (p && !STOP.has(p) && ![...known].some(k => p.includes(k) || k.includes(p)))
+      if (p && !STOP.has(p) && ![...known].some(k => p.includes(k) || k.includes(p))) {
         inThis.add(p);
+      }
     }
-    inThis.forEach(p => freq[p] = (freq[p] || 0) + 1);
+    inThis.forEach(p => { freq[p] = (freq[p] || 0) + 1; });
   }
+
   return Object.entries(freq)
     .filter(([, n]) => n >= MIN_OFFERS)
     .sort((a, b) => b<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a> - a<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>)
@@ -117,32 +126,51 @@ function mineSkills(texts) {
 function detectSkills(text, autoSkills) {
   const t = text.toLowerCase();
   const found = [];
-  for (const skills of Object.values(SKILL_DEFS))
-    for (const [skill, kws] of Object.entries(skills))
+  for (const skills of Object.values(SKILL_DEFS)) {
+    for (const [skill, kws] of Object.entries(skills)) {
       if (kws.some(k => t.includes(k))) found.push(skill);
-  for (const [skill, kws] of autoSkills)
+    }
+  }
+  for (const [skill, kws] of autoSkills) {
     if (kws.some(k => t.includes(k))) found.push(skill);
+  }
   return found;
 }
 
-/* ---------- POBIERANIE Z ADZUNA (cache 2 h – limit API!) ---------- */
+/* ---------- POBIERANIE Z ADZUNA (cache 2 h) ---------- */
 let cache = { jobs: null, cats: null, time: 0 };
 const TTL = 2 * 60 * 60 * 1000;
 
-const FALLBACK = [{ title: 'Przykładowa oferta (API niedostępne)', company: 'Rokuj',
-  location: 'Polska', remote: false, portal: 'demo', url: '#', skills: ['Obsługa klienta'] }];
+const FALLBACK = [{
+  title: 'Przykładowa oferta (API niedostępne)', company: 'Rokuj',
+  location: 'Polska', remote: false, portal: 'demo', url: '#',
+  skills: ['Obsługa klienta'],
+}];
+
+function baseCats() {
+  return Object.fromEntries(
+    Object.entries(SKILL_DEFS).map(([c, s]) => [c, Object.keys(s)])
+  );
+}
 
 async function refresh() {
   if (cache.jobs && Date.now() - cache.time < TTL) return cache;
   if (!APP_ID || !APP_KEY) return { jobs: FALLBACK, cats: baseCats() };
+
   try {
     const raw = [];
     for (const q of QUERIES) {
-      const url = `https://api.adzuna.com/v1/api/jobs/pl/search/1?app_id=${APP_ID}&app_key=${APP_KEY}` +
-        `&results_per_page=50&what_or=${encodeURIComponent(q)}&content-type=application/json`;
+      const url = 'https://api.adzuna.com/v1/api/jobs/pl/search/1' +
+        '?app_id=' + APP_ID + '&app_key=' + APP_KEY +
+        '&results_per_page=50&what_or=' + encodeURIComponent(q) +
+        '&content-type=application/json';
       const resp = await fetch(url);
-      if (resp.ok) raw.push(...((await resp.json()).results || []));
+      if (resp.ok) {
+        const data = await resp.json();
+        raw.push(...(data.results || []));
+      }
     }
+
     /* deduplikacja po adresie oferty */
     const seen = new Set();
     const unique = raw.filter(r => !seen.has(r.redirect_url) && seen.add(r.redirect_url));
@@ -152,8 +180,8 @@ async function refresh() {
 
     const jobs = unique.map((r, i) => ({
       title: r.title || 'Oferta pracy',
-      company: r.company?.display_name || '',
-      location: r.location?.display_name || '',
+      company: r.company && r.company.display_name ? r.company.display_name : '',
+      location: r.location && r.location.display_name ? r.location.display_name : '',
       remote: /zdaln|remote|home office/i.test(texts[i]),
       portal: 'Adzuna',
       url: r.redirect_url || '#',
@@ -163,7 +191,9 @@ async function refresh() {
     const cats = baseCats();
     if (autoSkills.length) cats[AUTO_CAT] = autoSkills.map(([s]) => s);
 
-    console.log(`✅ ${unique.length} unikalnych ofert, ${jobs.length} z kompetencjami, ${autoSkills.length} auto-skilli: ${autoSkills.slice(0,8).map(s=>s<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>).join(', ')}…`);
+    console.log('✅ ' + unique.length + ' unikalnych ofert, ' + jobs.length +
+      ' z kompetencjami, ' + autoSkills.length + ' auto-skilli');
+
     cache = { jobs, cats, time: Date.now() };
     return cache;
   } catch (e) {
@@ -172,12 +202,8 @@ async function refresh() {
   }
 }
 
-function baseCats() {
-  return Object.fromEntries(Object.entries(SKILL_DEFS).map(([c, s]) => [c, Object.keys(s)]));
-}
-
 /* ---------- ENDPOINTY ---------- */
 app.get('/api/skills', async (req, res) => res.json((await refresh()).cats));
 app.get('/api/jobs',   async (req, res) => res.json((await refresh()).jobs));
 
-app.listen(PORT, () => console.log(`✅ Serwer działa: http://localhost:${PORT}`));
+app.listen(PORT, () => console.log('✅ Serwer działa: http://localhost:' + PORT));
