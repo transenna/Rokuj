@@ -3,296 +3,377 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rokuj.pl – praca, do której się nadajesz. Albo nadasz.</title>
+<title>Rokuj.pl – Praca, do której się nadajesz. Albo nadasz</title>
+<link rel="icon" href="logo.png">
 <style>
-  :root {
-    --bg: #f6f7fb; --card: #ffffff; --ink: #1e2235; --muted: #6b7280;
-    --accent: #5b4df0; --line: #e8eaf1;
-    --ok: #14b8a6; --warn: #f59e0b; --bad: #ef4444;
-    --radius: 16px; --shadow: 0 2px 12px rgba(30,34,53,.07);
-  }
-  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI',system-ui,sans-serif; }
-  body { background: var(--bg); color: var(--ink); }
+:root{
+  --pomarancz:#F26B1D;
+  --pomarancz-jasny:#FFB340;
+  --bordo:#6E1A0E;
+  --czern:#1C1917;
+  --tlo:#FFF8F2;
+  --ramka:#F3E3D7;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:'Segoe UI',system-ui,Arial,sans-serif;
+  background:var(--tlo);
+  color:var(--czern);
+}
 
-  header {
-    background: radial-gradient(1200px 400px at 20% -50%, #7c6cf7 0%, transparent 60%),
-                linear-gradient(120deg, #241d52, #4331a8 60%, #6d3fc4);
-    color:#fff; padding: 34px 24px 60px;
-  }
-  .head-inner { max-width:1150px; margin:0 auto; }
-  .brand { display:flex; align-items:center; gap:14px; }
-  .brand svg { flex-shrink:0; filter: drop-shadow(0 4px 10px rgba(0,0,0,.25)); }
-  .brand h1 { font-size:2rem; letter-spacing:-.5px; font-weight:800; }
-  .brand h1 span { color:#b9f4e8; }
-  .tagline { margin-top:8px; opacity:.85; font-size:1.02rem; }
+/* ---------- NAGŁÓWEK ---------- */
+header.brand{
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:18px 24px;background:#fff;
+  border-bottom:3px solid var(--pomarancz);
+  box-shadow:0 2px 12px rgba(110,26,14,.06);
+}
+header.brand img{height:56px;max-width:100%;}
+header.brand .claim{
+  margin:0;color:var(--bordo);font-size:1.05rem;font-weight:600;
+}
 
-  .filters {
-    max-width:1150px; margin:-34px auto 20px; padding:14px 16px;
-    background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow);
-    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
-  }
-  .filters input[type=text], .filters select {
-    padding:9px 12px; border:1.5px solid var(--line); border-radius:10px;
-    font-size:.9rem; outline:none; background:#fbfcfe; min-width:150px;
-  }
-  .filters input[type=text]:focus, .filters select:focus { border-color:var(--accent); }
-  .filters .grow { flex:1; min-width:200px; }
-  .chip { display:flex; align-items:center; gap:6px; font-size:.86rem; cursor:pointer;
-    border:1.5px solid var(--line); border-radius:999px; padding:8px 14px; user-select:none; transition:.15s; }
-  .chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
-  .range-wrap { display:flex; align-items:center; gap:8px; font-size:.84rem; color:var(--muted); }
+/* ---------- UKŁAD ---------- */
+.layout{
+  display:grid;grid-template-columns:320px minmax(0,auto);
+  gap:22px;max-width:1200px;margin:22px auto;padding:0 16px;
+}
+@media (max-width:820px){ .layout{grid-template-columns:minmax(0,auto);} }
 
-  .container { max-width:1150px; margin:0 auto 40px; padding:0 16px;
-    display:grid; grid-template-columns:340px 1fr; gap:20px; }
-  @media (max-width:860px){ .container{grid-template-columns:1fr;} .filters{margin:-34px 16px 20px;} }
+/* ---------- PANEL KOMPETENCJI ---------- */
+aside{
+  background:#fff;border:1px solid var(--ramka);border-radius:14px;
+  padding:16px;align-self:start;
+}
+aside h2{margin:0 0 4px;font-size:1.15rem;color:var(--bordo);}
+aside .hint{font-size:.82rem;color:#8a7a70;margin:0 0 12px;}
+details{border-bottom:1px solid var(--ramka);padding:6px 0;}
+details summary{
+  cursor:pointer;font-weight:700;color:var(--bordo);
+  padding:6px 2px;list-style-position:inside;
+}
+.cat-count{
+  background:var(--pomarancz);color:#fff;border-radius:999px;
+  font-size:.72rem;padding:2px 8px;margin-left:8px;font-weight:700;
+}
+.skill-row{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:8px;padding:5px 2px;font-size:.9rem;
+}
+.toggle{display:flex;gap:4px;flex-shrink:0;}
+.toggle button{
+  border:1px solid var(--ramka);background:#fff;border-radius:8px;
+  width:30px;height:28px;cursor:pointer;font-size:.85rem;
+}
+.toggle button:hover{border-color:var(--pomarancz);}
+.toggle .have.active{background:#2E9E44;color:#fff;border-color:#2E9E44;}
+.toggle .learn.active{background:var(--pomarancz-jasny);color:var(--czern);border-color:var(--pomarancz-jasny);}
+.toggle .never.active{background:#9C2413;color:#fff;border-color:#9C2413;}
+.reset-btn{
+  margin-top:14px;width:100%;padding:9px;border-radius:10px;
+  border:1px solid var(--ramka);background:#fff;color:var(--bordo);
+  cursor:pointer;font-weight:600;
+}
+.reset-btn:hover{background:#FBE3E0;}
 
-  .panel { background:var(--card); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); align-self:start; }
-  .panel h2 { font-size:1.05rem; margin-bottom:2px; }
-  .hint { font-size:.8rem; color:var(--muted); margin-bottom:12px; }
-  details { border-top:1px solid var(--line); }
-  details summary { cursor:pointer; padding:11px 4px; font-weight:600; font-size:.92rem;
-    list-style:none; display:flex; align-items:center; }
-  details summary::-webkit-details-marker { display:none; }
-  details summary::after { content:"▸"; color:var(--muted); transition:.2s; margin-left:auto; }
-  details[open] summary::after { transform:rotate(90deg); }
-  .cat-count { font-size:.72rem; background:#eef0fb; color:var(--accent);
-    border-radius:999px; padding:2px 9px; font-weight:700; margin-left:8px; }
-  .skill-row { display:flex; justify-content:space-between; align-items:center;
-    padding:6px 4px 10px; font-size:.88rem; gap:8px; }
-  .toggle { display:flex; gap:4px; flex-shrink:0; }
-  .toggle button { border:1.5px solid var(--line); background:#fff; border-radius:8px;
-    padding:3px 9px; cursor:pointer; font-size:.8rem; transition:.15s; }
-  .toggle button:hover { border-color:#c9cde0; }
-  .toggle .have.active  { background:var(--ok);  border-color:var(--ok);  color:#fff; }
-  .toggle .learn.active { background:var(--warn); border-color:var(--warn); color:#fff; }
-  .toggle .never.active { background:var(--bad);  border-color:var(--bad);  color:#fff; }
-  .reset { margin-top:12px; width:100%; padding:9px; border:none; border-radius:10px;
-    background:#eef0fb; color:var(--accent); font-weight:600; cursor:pointer; }
-  .reset:hover { background:#e2e5f8; }
+/* ---------- FILTRY ---------- */
+.filters{
+  display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  background:#fff;border:1px solid var(--ramka);border-radius:14px;
+  padding:14px;margin-bottom:16px;
+}
+input,select{
+  border:1px solid #E8D8CC;border-radius:10px;background:#fff;
+  padding:9px 12px;font-size:.92rem;color:var(--czern);
+}
+input:focus,select:focus{outline:2px solid var(--pomarancz-jasny);border-color:var(--pomarancz);}
+#fRemote{
+  border:1px solid #E8D8CC;background:#fff;border-radius:10px;
+  padding:9px 14px;cursor:pointer;font-size:.92rem;
+}
+#fRemote.on{background:var(--pomarancz);color:#fff;border-color:var(--pomarancz);}
+.range-wrap{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--bordo);}
+input[type=range]{accent-color:var(--pomarancz);padding:0;}
+#stats{color:#8a7a70;font-size:.9rem;margin:0 4px 12px;}
 
-  .stats { font-size:.86rem; color:var(--muted); margin-bottom:12px; }
-  .job { background:var(--card); border-radius:var(--radius); padding:18px 20px;
-    margin-bottom:12px; box-shadow:var(--shadow); transition:.15s; border-left:4px solid transparent; }
-  .job:hover { transform:translateY(-2px); }
-  .job.high { border-left-color:var(--ok); } .job.mid { border-left-color:var(--warn); }
-  .job h3 { font-size:1.02rem; padding-right:130px; }
-  .meta { color:var(--muted); font-size:.84rem; margin-top:3px; }
-  .badge { font-size:.7rem; padding:3px 10px; border-radius:999px; background:#eef0fb; color:var(--accent); font-weight:700; }
-  .match { float:right; font-weight:800; font-size:.9rem; padding:5px 12px; border-radius:999px; }
-  .match.high { background:#d8f5f0; color:#0f766e; }
-  .match.mid  { background:#fdf0d5; color:#92400e; }
-  .match.low  { background:#f0f1f5; color:var(--muted); }
-  .tag { display:inline-block; font-size:.74rem; padding:2px 10px; border-radius:999px;
-    border:1px solid var(--line); margin:7px 4px 0 0; background:#fbfcfe; }
-  .tag.have  { background:#d8f5f0; border-color:#8fe3d7; color:#0f766e; }
-  .tag.learn { background:#fdf0d5; border-color:#f5d489; color:#92400e; }
-  .job a { display:inline-block; margin-top:10px; font-size:.85rem; color:var(--accent);
-    text-decoration:none; font-weight:700; }
-  .job a:hover { text-decoration:underline; }
-  .empty { text-align:center; color:var(--muted); padding:48px 20px;
-    background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); }
+/* ---------- OFERTY ---------- */
+.job{
+  position:relative;background:#fff;border:1px solid var(--ramka);
+  border-left:5px solid var(--pomarancz);border-radius:12px;
+  box-shadow:0 2px 10px rgba(110,26,14,.07);
+  padding:16px 18px;margin-bottom:14px;
+}
+.job.high{border-left-color:#2E9E44;}
+.job.mid{border-left-color:var(--pomarancz-jasny);}
+.job.low{border-left-color:#C9BEB8;}
+.job h3{margin:4px 0 6px;font-size:1.08rem;}
+.job .meta{color:#8a7a70;font-size:.88rem;margin-bottom:10px;}
+.job a{color:var(--pomarancz);font-weight:600;text-decoration:none;display:inline-block;margin-top:10px;}
+.job a:hover{color:var(--bordo);}
+.match{
+  float:right;border-radius:999px;font-weight:700;font-size:.8rem;
+  padding:4px 12px;margin-left:10px;
+}
+.match.high{background:#E7F6EA;color:#1F7A33;}
+.match.mid{background:#FFF1DC;color:#B25E00;}
+.match.low{background:#F1ECE9;color:#7A6F69;}
+.badge{
+  background:linear-gradient(135deg,var(--pomarancz-jasny),var(--pomarancz));
+  color:#fff;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:600;
+}
+.tag{
+  display:inline-block;background:#F6EEE8;border-radius:999px;
+  padding:3px 10px;font-size:.8rem;margin:2px 4px 2px 0;
+}
+.tag.have{background:#E7F6EA;color:#1F7A33;}
+.tag.learn{background:#FFF1DC;color:#B25E00;}
+.tag.never{background:#FBE3E0;color:#9C2413;}
+.empty{
+  text-align:center;color:var(--bordo);background:#fff;
+  border:1px dashed var(--pomarancz-jasny);border-radius:14px;padding:40px 20px;
+}
+footer{
+  text-align:center;color:#8a7a70;font-size:.82rem;padding:24px;
+}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="head-inner">
-    <div class="brand">
-      <svg width="52" height="52" viewBox="0 0 52 52">
-        <rect x="1" y="1" width="50" height="50" rx="14" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-        <rect x="10" y="30" width="6" height="11" rx="2" fill="#8fa2ff"/>
-        <rect x="20" y="24" width="6" height="17" rx="2" fill="#b9c4ff"/>
-        <rect x="30" y="17" width="6" height="24" rx="2" fill="#ffffff"/>
-        <path d="M11 22 L28 13 L40 8" fill="none" stroke="#5eead4" stroke-width="3" stroke-linecap="round"/>
-        <path d="M33 7 L41 7.5 L38 15" fill="none" stroke="#5eead4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <h1>rokuj<span>.pl</span></h1>
-    </div>
-    <p class="tagline">Praca, do której się nadajesz. <strong>Albo nadasz.</strong></p>
-  </div>
+<header class="brand">
+  <img src="logo.png" alt="Rokuj.pl">
+  <p class="claim">Praca, do której się nadajesz. Albo nadasz.</p>
 </header>
 
-<div class="filters">
-  <input type="text" id="fSearch" class="grow" placeholder="🔍 Szukaj: stanowisko, firma...">
-  <input type="text" id="fLocation" placeholder="📍 Lokalizacja">
-  <label class="chip" id="fRemote">🏠 Praca zdalna</label>
-  <select id="fPortal"><option value="">Wszystkie portale</option></select>
-  <select id="fSort">
-    <option value="score">Sortuj: rokowanie</option>
-    <option value="title">Sortuj: A–Z</option>
-  </select>
-  <span class="range-wrap">min. <input type="range" id="fScore" min="0" max="100" step="10" value="0"><b id="fScoreVal">0%</b></span>
-</div>
+<div class="layout">
 
-<div class="container">
-
-  <aside class="panel">
+  <aside>
     <h2>Twoje kompetencje</h2>
-    <p class="hint">✔ mam · 📚 mogę nabyć · ✖ nie nabędę<br>Kliknij ponownie, aby odznaczyć. Profil zapisuje się automatycznie.</p>
+    <p class="hint">✔ mam &nbsp;·&nbsp; 📚 mogę nabyć &nbsp;·&nbsp; ✖ nie nabędę<br>Ponowne kliknięcie odznacza.</p>
     <div id="skills"></div>
-    <button class="reset" onclick="resetProfile()">Wyczyść profil</button>
+    <button class="reset-btn" id="btnReset">🔄 Resetuj profil</button>
   </aside>
 
   <main>
-    <div class="stats" id="stats">Ładowanie ofert...</div>
+    <div class="filters">
+      <input id="fSearch" type="text" placeholder="🔍 Szukaj stanowiska lub firmy">
+      <input id="fLocation" type="text" placeholder="📍 Lokalizacja">
+      <select id="fPortal"><option value="">Wszystkie portale</option></select>
+      <select id="fSort">
+        <option value="score">Sortuj: rokowanie</option>
+        <option value="title">Sortuj: nazwa</option>
+      </select>
+      <button id="fRemote">🏠 zdalnie</button>
+      <span class="range-wrap">
+        min. rokowanie
+        <input id="fScore" type="range" min="0" max="100" step="5" value="0">
+        <b id="fScoreVal">0%</b>
+      </span>
+    </div>
+    <p id="stats"></p>
     <div id="jobs"></div>
   </main>
 
 </div>
 
-<script>
-let JOBS = [], CATEGORIES = {}, userSkills = {};
-let remoteOnly = false;
-let openCats = {};   // pamięta, które kategorie są rozwinięte
+<footer>Rokuj.pl · oferty pochodzą z legalnych, publicznych źródeł</footer>
 
-function saveProfile() { localStorage.setItem('rokuj_profile', JSON.stringify(userSkills)); }
-function loadProfile() {
-  try { userSkills = JSON.parse(localStorage.getItem('rokuj_profile')) || {}; }
-  catch { userSkills = {}; }
+<script>
+let JOBS = [];
+let CATEGORIES = {};
+let userSkills = {};
+let openCats = {};
+let remoteOnly = false;
+
+/* ---------- profil w localStorage ---------- */
+function saveProfile(){
+  localStorage.setItem('rokujProfile', JSON.stringify(userSkills));
 }
-function resetProfile() {
+function loadProfile(){
+  try{
+    const raw = localStorage.getItem('rokujProfile');
+    if(raw) userSkills = JSON.parse(raw) || {};
+  }catch(e){ userSkills = {}; }
+}
+
+/* ---------- bezpieczne wstawianie tekstu ---------- */
+function esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+    if(c === '&') return '&amp;';
+    if(c === '<') return '&lt;';
+    if(c === '>') return '&gt;';
+    if(c === '"') return '&quot;';
+    return '&#39;';
+  });
+}
+
+/* ---------- start ---------- */
+async function load(){
+  loadProfile();
+  try{
+    const respSkills = await fetch('/api/skills');
+    CATEGORIES = await respSkills.json();
+    const respJobs = await fetch('/api/jobs');
+    JOBS = await respJobs.json();
+  }catch(e){
+    document.getElementById('jobs').innerHTML =
+      '<div class="empty">Nie udało się pobrać ofert. Odśwież stronę za chwilę. 🔄</div>';
+    return;
+  }
+  const portals = Array.from(new Set(JOBS.map(function(j){ return j.portal; }))).sort();
+  let opts = '<option value="">Wszystkie portale</option>';
+  for(const p of portals){ opts += '<option>' + esc(p) + '</option>'; }
+  document.getElementById('fPortal').innerHTML = opts;
+  renderSkills();
+  renderJobs();
+}
+
+/* ---------- panel kompetencji ---------- */
+function renderSkills(){
+  const present = new Set();
+  for(const j of JOBS){
+    const sk = j.skills || [];
+    for(const s of sk) present.add(s);
+  }
+
+  let html = '';
+  for(const cat of Object.keys(CATEGORIES)){
+    const visible = CATEGORIES[cat].filter(function(s){ return present.has(s); });
+    if(!visible.length) continue;
+    const marked = visible.filter(function(s){ return userSkills[s]; }).length;
+    html += '<details ' + (openCats[cat] ? 'open' : '') + ' data-cat="' + esc(cat) + '">' +
+      '<summary>' + esc(cat) +
+      (marked ? '<span class="cat-count">' + marked + '</span>' : '') +
+      '</summary>';
+    for(const s of visible){
+      const st = userSkills[s] || '';
+      html += '<div class="skill-row" data-skill="' + esc(s) + '">' +
+        '<span>' + esc(s) + '</span>' +
+        '<span class="toggle">' +
+        '<button class="have '  + (st === 'have'  ? 'active' : '') + '" data-state="have"  title="Mam">✔</button>' +
+        '<button class="learn ' + (st === 'learn' ? 'active' : '') + '" data-state="learn" title="Mogę nabyć">📚</button>' +
+        '<button class="never ' + (st === 'never' ? 'active' : '') + '" data-state="never" title="Nie nabędę">✖</button>' +
+        '</span></div>';
+    }
+    html += '</details>';
+  }
+  const box = document.getElementById('skills');
+  box.innerHTML = html;
+  const detailsList = box.querySelectorAll('details');
+  for(const d of detailsList){
+    d.addEventListener('toggle', function(){ openCats[d.dataset.cat] = d.open; });
+  }
+}
+
+/* delegacja klików na przyciskach kompetencji */
+document.getElementById('skills').addEventListener('click', function(e){
+  const btn = e.target.closest('button[data-state]');
+  if(!btn) return;
+  const row = btn.closest('.skill-row');
+  setS(row.dataset.skill, btn.dataset.state);
+});
+
+function setS(skill, state){
+  if(userSkills[skill] === state) delete userSkills[skill];
+  else userSkills[skill] = state;
+  saveProfile();
+  renderSkills();
+  renderJobs();
+}
+
+/* reset profilu */
+document.getElementById('btnReset').addEventListener('click', function(){
+  if(!confirm('Na pewno wyczyścić wszystkie oznaczenia kompetencji?')) return;
   userSkills = {};
   saveProfile();
   renderSkills();
   renderJobs();
-}
+});
 
-async function load() {
-  loadProfile();
-  try {
-    const [jobsResp, skillsResp] = await Promise.all([
-      fetch('/api/jobs'),
-      fetch('/api/skills')
-    ]);
-
-    if (!jobsResp.ok) throw new Error(`jobs HTTP ${jobsResp.status}`);
-    if (!skillsResp.ok) throw new Error(`skills HTTP ${skillsResp.status}`);
-
-    JOBS = await jobsResp.json();
-    CATEGORIES = await skillsResp.json();
-
-  } catch (e) {
-    console.error("LOAD ERROR:", e);
-    document.getElementById('stats').textContent = 'Błąd pobierania ofert. Zobacz Console (F12).';
-    return;
-  }
-
-  const portals = [...new Set(JOBS.map(j => j.portal))].sort();
-  document.getElementById('fPortal').innerHTML =
-    '<option value="">Wszystkie portale</option>' +
-    portals.map(p => `<option>${p}</option>`).join('');
-
-  renderSkills();
-  renderJobs();
-}
-
-function renderSkills() {
-  const present = new Set(JOBS.flatMap(j => j.skills));
-  let html = '';
-
-  for (const [cat, skills] of Object.entries(CATEGORIES)) {
-    const visible = skills.filter(s => present.has(s));
-    if (!visible.length) continue;
-
-    const marked = visible.filter(s => userSkills[s]).length;
-
-    html += `<details ${openCats[cat] ? 'open' : ''} data-cat="${cat}">
-      <summary>${cat}${marked ? `<span class="cat-count">${marked}</span>` : ''}</summary>
-      ${visible.map(s => `
-        <div class="skill-row">
-          <span>${s}</span>
-          <span class="toggle">
-            <button class="have ${userSkills[s]==='have'?'active':''}"  onclick="setS('${s}','have')"  title="Mam">✔</button>
-            <button class="learn ${userSkills[s]==='learn'?'active':''}" onclick="setS('${s}','learn')" title="Mogę nabyć">📚</button>
-            <button class="never ${userSkills[s]==='never'?'active':''}" onclick="setS('${s}','never')" title="Nie nabędę">✖</button>
-          </span>
-        </div>`).join('')}
-    </details>`;
-  }
-
-  document.getElementById('skills').innerHTML = html;
-
-  document.querySelectorAll('#skills details').forEach(d => {
-    d.addEventListener('toggle', () => { openCats[d.dataset.cat] = d.open; });
-  });
-}
-
-function setS(skill, state) {
-  userSkills[skill] = userSkills[skill] === state ? undefined : state;
-  saveProfile();
-  renderSkills();
-  renderJobs();
-}
-
-function renderJobs() {
+/* ---------- oferty ---------- */
+function renderJobs(){
   const q        = document.getElementById('fSearch').value.toLowerCase().trim();
   const loc      = document.getElementById('fLocation').value.toLowerCase().trim();
   const portal   = document.getElementById('fPortal').value;
   const sortBy   = document.getElementById('fSort').value;
-  const minScore = parseInt(document.getElementById('fScore').value);
+  const minScore = parseInt(document.getElementById('fScore').value, 10);
 
-  const results = JOBS.map(j => {
+  const results = [];
+  for(const j of JOBS){
+    const sk = j.skills || [];
     let have = 0, learn = 0, blocked = false;
-    j.skills.forEach(s => {
-      if (userSkills[s] === 'never') blocked = true;
-      else if (userSkills[s] === 'have') have++;
-      else if (userSkills[s] === 'learn') learn++;
-    });
+    for(const s of sk){
+      if(userSkills[s] === 'never') blocked = true;
+      else if(userSkills[s] === 'have') have += 1;
+      else if(userSkills[s] === 'learn') learn += 1;
+    }
+    if(blocked) continue;
+    const score = sk.length ? Math.round((have + learn * 0.5) / sk.length * 100) : 0;
 
-    const score = j.skills.length
-      ? Math.round((have + learn * 0.5) / j.skills.length * 100)
-      : 0;
+    const hay = ((j.title || '') + ' ' + (j.company || '')).toLowerCase();
+    if(q && hay.indexOf(q) === -1) continue;
+    if(loc && (j.location || '').toLowerCase().indexOf(loc) === -1) continue;
+    if(remoteOnly && !j.remote) continue;
+    if(portal && j.portal !== portal) continue;
+    if(score < minScore) continue;
 
-    return { j, blocked, score };
-  })
-  .filter(r => !r.blocked)
-  .filter(r => !q      || (r.j.title + ' ' + r.j.company).toLowerCase().includes(q))
-  .filter(r => !loc    || (r.j.location || '').toLowerCase().includes(loc))
-  .filter(r => !remoteOnly || r.j.remote)
-  .filter(r => !portal || r.j.portal === portal)
-  .filter(r => r.score >= minScore);
+    results.push({ j: j, score: score });
+  }
 
-  results.sort((a, b) => sortBy === 'title'
-    ? a.j.title.localeCompare(b.j.title, 'pl')
-    : b.score - a.score
-  );
+  results.sort(function(a, b){
+    if(sortBy === 'title') return a.j.title.localeCompare(b.j.title, 'pl');
+    return b.score - a.score;
+  });
 
   document.getElementById('stats').textContent =
-    `Znaleziono ${results.length} z ${JOBS.length} ofert`;
+    'Znaleziono ' + results.length + ' z ' + JOBS.length + ' ofert';
 
-  if (!results.length) {
-    document.getElementById('jobs').innerHTML =
-      '<div class="empty">Brak pasujących ofert 😕<br>Poluzuj filtry lub zmień ustawienia kompetencji.</div>';
+  const box = document.getElementById('jobs');
+  if(!results.length){
+    box.innerHTML = '<div class="empty">Brak pasujących ofert 😕<br>Poluzuj filtry lub zmień ustawienia kompetencji.</div>';
     return;
   }
 
-  document.getElementById('jobs').innerHTML = results.map(r => {
-    const cls = r.score >= 70 ? 'high' : r.score >= 40 ? 'mid' : 'low';
-    const tags = r.j.skills.map(s => `<span class="tag ${userSkills[s]||''}">${s}</span>`).join('');
+  let html = '';
+  for(const r of results){
+    const cls = r.score >= 70 ? 'high' : (r.score >= 40 ? 'mid' : 'low');
+    let tags = '';
+    for(const s of (r.j.skills || [])){
+      tags += '<span class="tag ' + (userSkills[s] || '') + '">' + esc(s) + '</span>';
+    }
+    const metaParts = [];
+    if(r.j.company) metaParts.push(esc(r.j.company));
+    metaParts.push(esc(r.j.location || 'lokalizacja nieznana'));
+    if(r.j.remote) metaParts.push('🏠 zdalnie');
 
-    return `
-      <div class="job ${cls}">
-        <span class="match ${cls}">Rokujesz na ${r.score}%</span>
-        <h3>${r.j.title}</h3>
-        <div class="meta">${r.j.company} · ${r.j.location || 'lokalizacja nieznana'} · <span class="badge">${r.j.portal}</span></div>
-        <div>${tags}</div>
-        <a href="${r.j.url}" target="_blank" rel="noopener">Zobacz ofertę →</a>
-      </div>`;
-  }).join('');
+    html += '<div class="job ' + cls + '">' +
+      '<span class="match ' + cls + '">Rokujesz na ' + r.score + '%</span>' +
+      '<h3>' + esc(r.j.title) + '</h3>' +
+      '<div class="meta">' + metaParts.join(' · ') +
+      ' · <span class="badge">' + esc(r.j.portal) + '</span></div>' +
+      '<div>' + tags + '</div>' +
+      '<a href="' + esc(r.j.url) + '" target="_blank" rel="noopener">Zobacz ofertę →</a>' +
+      '</div>';
+  }
+  box.innerHTML = html;
 }
 
-// nasłuchiwanie filtrów
-document.getElementById('fSearch').addEventListener('input', renderJobs);
-document.getElementById('fLocation').addEventListener('input', renderJobs);
+/* ---------- filtry ---------- */
+let debTimer = null;
+function debouncedRender(){
+  clearTimeout(debTimer);
+  debTimer = setTimeout(renderJobs, 150);
+}
+document.getElementById('fSearch').addEventListener('input', debouncedRender);
+document.getElementById('fLocation').addEventListener('input', debouncedRender);
 document.getElementById('fPortal').addEventListener('change', renderJobs);
 document.getElementById('fSort').addEventListener('change', renderJobs);
-
-document.getElementById('fScore').addEventListener('input', () => {
-  document.getElementById('fScoreVal').textContent = document.getElementById('fScore').value + '%';
+document.getElementById('fScore').addEventListener('input', function(){
+  document.getElementById('fScoreVal').textContent =
+    document.getElementById('fScore').value + '%';
   renderJobs();
 });
-
-document.getElementById('fRemote').addEventListener('click', () => {
+document.getElementById('fRemote').addEventListener('click', function(){
   remoteOnly = !remoteOnly;
   document.getElementById('fRemote').classList.toggle('on', remoteOnly);
   renderJobs();
@@ -300,6 +381,5 @@ document.getElementById('fRemote').addEventListener('click', () => {
 
 load();
 </script>
-
 </body>
 </html>
