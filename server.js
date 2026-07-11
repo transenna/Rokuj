@@ -94,55 +94,69 @@ const MIN_OFFERS = 3;
 const MAX_AUTO   = 40;
 
 function cleanPhrase(p) {
-  let words = p.toLowerCase().trim().split(/\s+/);
-  while (words.length && STOP.has(words[words.length - 1])) words.pop();
-  while (words.length && STOP.has(words<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>)) words.shift();
+  const words = p.toLowerCase().trim().split(/\s+/);
+  while (words.length && STOP.has(words.at(-1))) words.pop();
+  while (words.length && STOP.has(words.at(0))) words.shift();
   if (!words.length || words.join(' ').length < 4) return null;
   return words.join(' ');
 }
 
-/* Zwraca auto-skille z przypisaną kategorią (tą, w której fraza pada najczęściej) */
+/* Auto-skille z przypisaną kategorią (tą, w której fraza pada najczęściej) */
 function mineSkills(items) {
-  const known = new Set();
+  const known = [];
   for (const skills of Object.values(SKILL_DEFS)) {
     for (const kws of Object.values(skills)) {
-      kws.forEach(k => known.add(k));
+      for (const k of kws) known.push(k);
     }
   }
 
-  const freq = {}; // fraza -> { total, byCat: {kategoria: liczba} }
+  const freq = {};
   for (const it of items) {
     const inThis = new Set();
     for (const m of it.text.toLowerCase().matchAll(CUE)) {
-      const p = cleanPhrase(m<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>);
-      if (p && !STOP.has(p) && ![...known].some(k => p.includes(k) || k.includes(p))) {
-        inThis.add(p);
+      const p = cleanPhrase(m.at(1));
+      if (!p || STOP.has(p)) continue;
+      let overlaps = false;
+      for (const k of known) {
+        if (p.includes(k) || k.includes(p)) { overlaps = true; break; }
       }
+      if (!overlaps) inThis.add(p);
     }
     for (const p of inThis) {
       if (!freq[p]) freq[p] = { total: 0, byCat: {} };
-      freq[p].total++;
+      freq[p].total += 1;
       freq[p].byCat[it.cat] = (freq[p].byCat[it.cat] || 0) + 1;
     }
   }
 
-  return Object.entries(freq)
-    .filter(([, v]) => v.total >= MIN_OFFERS)
-    .sort((a, b) => b<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.total - a<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>.total)
-    .slice(0, MAX_AUTO)
-    .map(([p, v]) => {
-      const cat = Object.entries(v.byCat).sort((a, b) => b<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a> - a<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>)<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a><a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>;
-      const name = p.charAt(0).toUpperCase() + p.slice(1);
-      return { name, keywords: [p], cat };
-    });
+  const list = [];
+  for (const phrase of Object.keys(freq)) {
+    const info = freq[phrase];
+    if (info.total >= MIN_OFFERS) list.push({ phrase, info });
+  }
+  list.sort((a, b) => b.info.total - a.info.total);
+
+  const result = [];
+  for (const item of list.slice(0, MAX_AUTO)) {
+    let bestCat = 'Biuro i administracja';
+    let bestN = -1;
+    for (const catName of Object.keys(item.info.byCat)) {
+      const n = item.info.byCat[catName];
+      if (n > bestN) { bestN = n; bestCat = catName; }
+    }
+    const name = item.phrase.charAt(0).toUpperCase() + item.phrase.slice(1);
+    result.push({ name, keywords: [item.phrase], cat: bestCat });
+  }
+  return result;
 }
 
 function detectSkills(text, autoSkills) {
   const t = text.toLowerCase();
   const found = [];
   for (const skills of Object.values(SKILL_DEFS)) {
-    for (const [skill, kws] of Object.entries(skills)) {
-      if (kws.some(k => t.includes(k))) found.push(skill);
+    for (const skillName of Object.keys(skills)) {
+      const kws = skills[skillName];
+      if (kws.some(k => t.includes(k))) found.push(skillName);
     }
   }
   for (const a of autoSkills) {
@@ -162,9 +176,11 @@ const FALLBACK = [{
 }];
 
 function baseCats() {
-  return Object.fromEntries(
-    Object.entries(SKILL_DEFS).map(([c, s]) => [c, Object.keys(s)])
-  );
+  const cats = {};
+  for (const catName of Object.keys(SKILL_DEFS)) {
+    cats[catName] = Object.keys(SKILL_DEFS[catName]);
+  }
+  return cats;
 }
 
 async function refresh() {
@@ -173,16 +189,16 @@ async function refresh() {
 
   try {
     const raw = [];
-    for (const { q, cat } of QUERIES) {
+    for (const query of QUERIES) {
       const url = 'https://api.adzuna.com/v1/api/jobs/pl/search/1' +
         '?app_id=' + APP_ID + '&app_key=' + APP_KEY +
-        '&results_per_page=50&what_or=' + encodeURIComponent(q) +
+        '&results_per_page=50&what_or=' + encodeURIComponent(query.q) +
         '&content-type=application/json';
       const resp = await fetch(url);
       if (resp.ok) {
         const data = await resp.json();
         for (const r of (data.results || [])) {
-          r._cat = cat;
+          r._cat = query.cat;
           raw.push(r);
         }
       }
@@ -199,15 +215,22 @@ async function refresh() {
 
     const autoSkills = mineSkills(items);
 
-    const jobs = unique.map((r, i) => ({
-      title: r.title || 'Oferta pracy',
-      company: r.company && r.company.display_name ? r.company.display_name : '',
-      location: r.location && r.location.display_name ? r.location.display_name : '',
-      remote: /zdaln|remote|home office/i.test(items[i].text),
-      portal: 'Adzuna',
-      url: r.redirect_url || '#',
-      skills: detectSkills(items[i].text, autoSkills),
-    })).filter(j => j.skills.length > 0);
+    const jobs = [];
+    for (let i = 0; i < unique.length; i++) {
+      const r = unique.at(i);
+      const it = items.at(i);
+      const skills = detectSkills(it.text, autoSkills);
+      if (!skills.length) continue;
+      jobs.push({
+        title: r.title || 'Oferta pracy',
+        company: (r.company && r.company.display_name) ? r.company.display_name : '',
+        location: (r.location && r.location.display_name) ? r.location.display_name : '',
+        remote: /zdaln|remote|home office/i.test(it.text),
+        portal: 'Adzuna',
+        url: r.redirect_url || '#',
+        skills: skills,
+      });
+    }
 
     /* auto-skille dopisywane do NORMALNYCH kategorii */
     const cats = baseCats();
