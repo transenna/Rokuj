@@ -281,62 +281,113 @@ function findCol(headers, patterns) {
 
 async function fetchCBOP() {
   try {
-    const dsResp = await fetch(DANE_API + '/datasets?q=' +
-      encodeURIComponent('centralna baza ofert pracy') + '&per_page=5');
-    if (!dsResp.ok) { console.error('CBOP: datasets HTTP ' + dsResp.status); return []; }
-    const dsData = await dsResp.json();
-    const dsList = dsData.data || [];
-    if (!dsList.length) { console.error('CBOP: nie znaleziono zbioru'); return []; }
-    let ds = null;
-    for (const d of dsList) {
-      const t = ((d.attributes && d.attributes.title) || '').toLowerCase();
-      if (t.includes('ofert')) { ds = d; break; }
+    /* 1. szukamy właściwego zbioru kilkoma frazami */
+    const searches = ['oferty pracy', 'wolne miejsca pracy', 'centralna baza ofert pracy'];
+    let candidates = [];
+    for (const q of searches) {
+      const resp = await fetch(DANE_API + '/datasets?q=' + encodeURIComponent(q) + '&per_page=10');
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      for (const d of (data.data || [])) candidates.push(d);
     }
-    if (!ds) ds = dsList.at(0);
-    console.log('CBOP: zbiór "' + ds.attributes.title + '" (id ' + ds.id + ')');
+    const byId = {};
+    for (const d of candidates) byId[d.id] = d;
+    candidates = Object.values(byId);
+    const titleList = [];
+    for (const d of candidates) {
+      titleList.push('(' + d.id + ') ' + ((d.attributes && d.attributes.title) || ''));
+    }
+    console.log('CBOP kandydaci: ' + titleList.join(' || '));
 
+    let ds = null;
+    for (const d of candidates) {
+      const t = ((d.attributes && d.attributes.title) || '').toLowerCase();
+      if (t.includes('ofert') && t.includes('prac') && !t.includes('agencj')) { ds = d; break; }
+    }
+    if (!ds) { console.error('CBOP: nie znaleziono zbioru z ofertami'); return []; }
+    console.log('CBOP: wybrany zbiór "' + ds.attributes.title + '" (id ' + ds.id + ')');
+
+    /* 2. zasoby: preferuj CSV, akceptuj JSON */
     const resResp = await fetch(DANE_API + '/datasets/' + ds.id +
       '/resources?per_page=20&sort=-created');
     if (!resResp.ok) { console.error('CBOP: resources HTTP ' + resResp.status); return []; }
     const resData = await resResp.json();
     const resList = resData.data || [];
     let res = null;
+    let resFmt = '';
     const formats = [];
     for (const r of resList) {
       const fmt = ((r.attributes && r.attributes.format) || '').toLowerCase();
       formats.push(fmt);
-      if (!res && fmt.includes('csv')) res = r;
+      if (!res && fmt.includes('csv')) { res = r; resFmt = 'csv'; }
     }
     if (!res) {
-      console.error('CBOP: brak CSV, formaty: ' + formats.join(', '));
-      return [];
+      for (const r of resList) {
+        const fmt = ((r.attributes && r.attributes.format) || '').toLowerCase();
+        if (!res && fmt.includes('json')) { res = r; resFmt = 'json'; }
+      }
     }
+    if (!res) { console.error('CBOP: brak CSV/JSON, formaty: ' + formats.join(', ')); return []; }
     const a = res.attributes;
     const fileUrl = a.file_url || a.download_url || a.link;
-    console.log('CBOP: zasób "' + a.title + '"');
+    console.log('CBOP: zasób "' + a.title + '" [' + resFmt + ']');
     if (!fileUrl) { console.error('CBOP: zasób bez adresu pliku'); return []; }
 
     const fResp = await fetch(fileUrl);
     if (!fResp.ok) { console.error('CBOP: plik HTTP ' + fResp.status); return []; }
+
+    /* 3a. wariant JSON */
+    if (resFmt === 'json') {
+      const data = await fResp.json();
+      let arr = null;
+      if (Array.isArray(data)) arr = data;
+      else {
+        for (const k of Object.keys(data)) {
+          if (Array.isArray(data[k]) && data[k].length > 1) { arr = data[k]; break; }
+        }
+      }
+      if (!arr || !arr.length) { console.error('CBOP: JSON bez tablicy ofert'); return []; }
+      console.log('CBOP: pola JSON: ' + Object.keys(arr.at(0)).slice(0, 15).join(' | '));
+      const out = [];
+      for (const rec of arr.slice(0, CBOP_MAX_ROWS)) {
+        let title = '', firm = '', locVal = '', desc = '', urlVal = '';
+        for (const k of Object.keys(rec)) {
+          const kl = k.toLowerCase();
+          const v = String(rec[k] == null ? '' : rec[k]);
+          if (!title && (kl.includes('stanowisko') || kl.includes('zawod') || kl.includes('tytul') || kl.includes('nazwa'))) title = v;
+          else if (!firm && (kl.includes('pracodawc') || kl.includes('firma'))) firm = v;
+          else if (!locVal && (kl.includes('miejscowo') || kl.includes('miejsce') || kl.includes('lokalizac'))) locVal = v;
+          else if (!desc && (kl.includes('opis') || kl.includes('wymagan') || kl.includes('zakres'))) desc = v;
+          else if (!urlVal && (kl.includes('link') || kl.includes('url'))) urlVal = v;
+        }
+        if (!title) continue;
+        const textAll = title + ' ' + desc;
+        out.push({
+          title: title, company: firm, location: locVal, text: textAll,
+          cat: categoryFor(textAll),
+          url: urlVal || 'https://oferty.praca.gov.pl',
+          portal: 'Urzędy pracy (CBOP)',
+        });
+      }
+      console.log('CBOP: wczytano ' + out.length + ' ofert (json)');
+      return out;
+    }
+
+    /* 3b. wariant CSV */
     const textData = await fResp.text();
     const nl = textData.indexOf('\n');
     const firstLine = nl > 0 ? textData.slice(0, nl) : textData;
     const delim = (firstLine.split(';').length >= firstLine.split(',').length) ? ';' : ',';
     const rows = parseCSV(textData, delim, CBOP_MAX_ROWS);
     if (rows.length < 2) { console.error('CBOP: pusty plik'); return []; }
-
     const headers = rows.at(0);
     console.log('CBOP: nagłówki: ' + headers.slice(0, 12).join(' | '));
-    const colTitle = findCol(headers, ['stanowisko', 'zawód', 'zawod', 'nazwa oferty', 'tytuł', 'tytul']);
-    const colFirm  = findCol(headers, ['pracodawc', 'firma', 'nazwa jednostki']);
-    const colLoc   = findCol(headers, ['miejscowość', 'miejscowosc', 'miejsce pracy', 'gmina', 'powiat']);
+    const colTitle = findCol(headers, ['stanowisko', 'zawód', 'zawod', 'tytuł', 'tytul', 'nazwa']);
+    const colFirm  = findCol(headers, ['pracodawc', 'firma']);
+    const colLoc   = findCol(headers, ['miejscowość', 'miejscowosc', 'miejsce', 'lokalizac']);
     const colDesc  = findCol(headers, ['opis', 'zakres', 'wymagan', 'kwalifikac']);
-    const colUrl   = findCol(headers, ['link', 'url', 'adres oferty']);
-    if (colTitle < 0) {
-      console.error('CBOP: nie rozpoznano kolumny ze stanowiskiem');
-      return [];
-    }
-
+    const colUrl   = findCol(headers, ['link', 'url']);
+    if (colTitle < 0) { console.error('CBOP: nie rozpoznano kolumny ze stanowiskiem'); return []; }
     const out = [];
     for (let i = 1; i < rows.length; i++) {
       const r = rows.at(i);
@@ -355,13 +406,14 @@ async function fetchCBOP() {
         portal: 'Urzędy pracy (CBOP)',
       });
     }
-    console.log('CBOP: wczytano ' + out.length + ' ofert');
+    console.log('CBOP: wczytano ' + out.length + ' ofert (csv)');
     return out;
   } catch (e) {
     console.error('CBOP błąd:', e.message);
     return [];
   }
 }
+
 
 /* ---------- AGREGACJA + CACHE ---------- */
 let cache = { jobs: null, cats: null, time: 0 };
