@@ -1,4 +1,4 @@
--/* server.js – Rokuj: Adzuna + Jooble + CBOP */
+/* server.js – Rokuj: Adzuna + Jooble + CBOP */
 const express = require('express');
 const path = require('path');
 const app = express();
