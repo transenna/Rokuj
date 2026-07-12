@@ -9,6 +9,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const ADZUNA_ID  = process.env.ADZUNA_APP_ID;
 const ADZUNA_KEY = process.env.ADZUNA_APP_KEY;
 const JOOBLE_KEY = process.env.JOOBLE_API_KEY;
+const CAREERJET_KEY = process.env.CAREERJET_API_KEY;
+
 
 /* ---------- ZAPYTANIA PER BRANŻA ---------- */
 const QUERIES = [
@@ -223,6 +225,50 @@ async function fetchJooble() {
   }
   return out;
 }
+/* ---------- ŹRÓDŁO: Careerjet ---------- */
+async function fetchCareerjet() {
+  if (!CAREERJET_KEY) return [];
+  const auth = 'Basic ' + Buffer.from(CAREERJET_KEY + ':').toString('base64');
+  const out = [];
+  for (const query of QUERIES) {
+    try {
+      const url = 'https://search.api.careerjet.net/v4/query' +
+        '?locale_code=pl_PL' +
+        '&keywords=' + encodeURIComponent(query.q) +
+        '&pagesize=50&page=1';
+      const resp = await fetch(url, {
+        headers: {
+          'Authorization': auth,
+          'User-Agent': 'RokujPL/1.0 (+https://rokuj.onrender.com)',
+        },
+      });
+      if (!resp.ok) {
+        console.error('Careerjet (' + query.q + '): HTTP ' + resp.status);
+        continue;
+      }
+      const data = await resp.json();
+      const jobsArr = data.jobs || (data.data && data.data.jobs) || [];
+      if (!jobsArr.length && out.length === 0) {
+        console.log('Careerjet: pola odpowiedzi: ' + Object.keys(data).join(' | '));
+      }
+      for (const r of jobsArr) {
+        out.push({
+          title: r.title || 'Oferta pracy',
+          company: r.company || '',
+          location: r.locations || r.location || '',
+          text: (r.title || '') + ' ' + (r.description || r.snippet || ''),
+          cat: query.cat,
+          url: r.url || r.link || '#',
+          portal: 'Careerjet',
+        });
+      }
+    } catch (e) {
+      console.error('Careerjet (' + query.q + '):', e.message);
+    }
+  }
+  return out;
+}
+
 /* ---------- ŹRÓDŁO 3: CBOP przez dane.gov.pl ---------- */
 const DANE_API = 'https://api.dane.gov.pl/1.4';
 const CBOP_MAX_ROWS = 4000;
@@ -451,7 +497,7 @@ async function refresh() {
   if (cache.jobs && Date.now() - cache.time < TTL) return cache;
 
   try {
-    const results = await Promise.all([fetchAdzuna(), fetchJooble()]);
+    const results = await Promise.all([fetchAdzuna(), fetchJooble(), fetchCareerjet()]);
     let all = [];
     for (const part of results) all = all.concat(part);
 
