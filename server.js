@@ -1,4 +1,4 @@
-/* server.js – Rokuj: wiele źródeł ofert (Adzuna + Jooble) */
+-/* server.js – Rokuj: Adzuna + Jooble + CBOP */
 const express = require('express');
 const path = require('path');
 const app = express();
@@ -162,11 +162,6 @@ function detectSkills(text, autoSkills) {
   return found;
 }
 
-/* ================================================================
-   ŹRÓDŁA OFERT – każde zwraca tablicę w formacie wewnętrznym:
-   { title, company, location, text, cat, url, portal }
-   ================================================================ */
-
 /* ---------- ŹRÓDŁO 1: Adzuna ---------- */
 async function fetchAdzuna() {
   if (!ADZUNA_ID || !ADZUNA_KEY) return [];
@@ -228,10 +223,147 @@ async function fetchJooble() {
   }
   return out;
 }
+/* ---------- ŹRÓDŁO 3: CBOP przez dane.gov.pl ---------- */
+const DANE_API = 'https://api.dane.gov.pl/1.4';
+const CBOP_MAX_ROWS = 4000;
 
-/* ================================================================
-   AGREGACJA + CACHE
-   ================================================================ */
+function categoryFor(text) {
+  const t = text.toLowerCase();
+  let bestCat = 'Biuro i administracja';
+  let bestN = 0;
+  for (const catName of Object.keys(SKILL_DEFS)) {
+    let n = 0;
+    for (const kws of Object.values(SKILL_DEFS[catName])) {
+      if (kws.some(k => t.includes(k))) n += 1;
+    }
+    if (n > bestN) { bestN = n; bestCat = catName; }
+  }
+  return bestCat;
+}
+
+function parseCSV(data, delim, maxRows) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQ = false;
+  for (let i = 0; i < data.length; i++) {
+    const c = data.charAt(i);
+    if (inQ) {
+      if (c === '"') {
+        if (data.charAt(i + 1) === '"') { field += '"'; i++; }
+        else inQ = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQ = true;
+    } else if (c === delim) {
+      row.push(field); field = '';
+    } else if (c === '\n') {
+      row.push(field); field = '';
+      rows.push(row); row = [];
+      if (rows.length > maxRows) break;
+    } else if (c !== '\r') {
+      field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+function findCol(headers, patterns) {
+  for (let i = 0; i < headers.length; i++) {
+    const h = String(headers[i] || '').toLowerCase();
+    for (const p of patterns) {
+      if (h.includes(p)) return i;
+    }
+  }
+  return -1;
+}
+
+async function fetchCBOP() {
+  try {
+    const dsResp = await fetch(DANE_API + '/datasets?q=' +
+      encodeURIComponent('centralna baza ofert pracy') + '&per_page=5');
+    if (!dsResp.ok) { console.error('CBOP: datasets HTTP ' + dsResp.status); return []; }
+    const dsData = await dsResp.json();
+    const dsList = dsData.data || [];
+    if (!dsList.length) { console.error('CBOP: nie znaleziono zbioru'); return []; }
+    let ds = null;
+    for (const d of dsList) {
+      const t = ((d.attributes && d.attributes.title) || '').toLowerCase();
+      if (t.includes('ofert')) { ds = d; break; }
+    }
+    if (!ds) ds = dsList.at(0);
+    console.log('CBOP: zbiór "' + ds.attributes.title + '" (id ' + ds.id + ')');
+
+    const resResp = await fetch(DANE_API + '/datasets/' + ds.id +
+      '/resources?per_page=20&sort=-created');
+    if (!resResp.ok) { console.error('CBOP: resources HTTP ' + resResp.status); return []; }
+    const resData = await resResp.json();
+    const resList = resData.data || [];
+    let res = null;
+    const formats = [];
+    for (const r of resList) {
+      const fmt = ((r.attributes && r.attributes.format) || '').toLowerCase();
+      formats.push(fmt);
+      if (!res && fmt.includes('csv')) res = r;
+    }
+    if (!res) {
+      console.error('CBOP: brak CSV, formaty: ' + formats.join(', '));
+      return [];
+    }
+    const a = res.attributes;
+    const fileUrl = a.file_url || a.download_url || a.link;
+    console.log('CBOP: zasób "' + a.title + '"');
+    if (!fileUrl) { console.error('CBOP: zasób bez adresu pliku'); return []; }
+
+    const fResp = await fetch(fileUrl);
+    if (!fResp.ok) { console.error('CBOP: plik HTTP ' + fResp.status); return []; }
+    const textData = await fResp.text();
+    const nl = textData.indexOf('\n');
+    const firstLine = nl > 0 ? textData.slice(0, nl) : textData;
+    const delim = (firstLine.split(';').length >= firstLine.split(',').length) ? ';' : ',';
+    const rows = parseCSV(textData, delim, CBOP_MAX_ROWS);
+    if (rows.length < 2) { console.error('CBOP: pusty plik'); return []; }
+
+    const headers = rows.at(0);
+    console.log('CBOP: nagłówki: ' + headers.slice(0, 12).join(' | '));
+    const colTitle = findCol(headers, ['stanowisko', 'zawód', 'zawod', 'nazwa oferty', 'tytuł', 'tytul']);
+    const colFirm  = findCol(headers, ['pracodawc', 'firma', 'nazwa jednostki']);
+    const colLoc   = findCol(headers, ['miejscowość', 'miejscowosc', 'miejsce pracy', 'gmina', 'powiat']);
+    const colDesc  = findCol(headers, ['opis', 'zakres', 'wymagan', 'kwalifikac']);
+    const colUrl   = findCol(headers, ['link', 'url', 'adres oferty']);
+    if (colTitle < 0) {
+      console.error('CBOP: nie rozpoznano kolumny ze stanowiskiem');
+      return [];
+    }
+
+    const out = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows.at(i);
+      if (!r || r.length < 2) continue;
+      const title = String(r[colTitle] || '').trim();
+      if (!title) continue;
+      const desc = colDesc >= 0 ? String(r[colDesc] || '') : '';
+      const textAll = title + ' ' + desc;
+      out.push({
+        title: title,
+        company: colFirm >= 0 ? String(r[colFirm] || '').trim() : '',
+        location: colLoc >= 0 ? String(r[colLoc] || '').trim() : '',
+        text: textAll,
+        cat: categoryFor(textAll),
+        url: colUrl >= 0 && r[colUrl] ? String(r[colUrl]).trim() : 'https://oferty.praca.gov.pl',
+        portal: 'Urzędy pracy (CBOP)',
+      });
+    }
+    console.log('CBOP: wczytano ' + out.length + ' ofert');
+    return out;
+  } catch (e) {
+    console.error('CBOP błąd:', e.message);
+    return [];
+  }
+}
+
+/* ---------- AGREGACJA + CACHE ---------- */
 let cache = { jobs: null, cats: null, time: 0 };
 const TTL = 2 * 60 * 60 * 1000;
 
@@ -249,7 +381,6 @@ function baseCats() {
   return cats;
 }
 
-/* deduplikacja: po URL oraz po znormalizowanym tytule+firmie */
 function dedupe(list) {
   const seen = new Set();
   const out = [];
@@ -268,7 +399,7 @@ async function refresh() {
   if (cache.jobs && Date.now() - cache.time < TTL) return cache;
 
   try {
-    const results = await Promise.all([fetchAdzuna(), fetchJooble()]);
+    const results = await Promise.all([fetchAdzuna(), fetchJooble(), fetchCBOP()]);
     let all = [];
     for (const part of results) all = all.concat(part);
 
@@ -297,18 +428,18 @@ async function refresh() {
     for (const a of autoSkills) {
       if (!cats[a.cat]) cats[a.cat] = [];
       if (!cats[a.cat].includes(a.name)) cats[a.cat].push(a.name);
-    }
+        }
 
     const perPortal = {};
     for (const j of jobs) perPortal[j.portal] = (perPortal[j.portal] || 0) + 1;
-    console.log('✅ ' + unique.length + ' unikalnych ofert, ' + jobs.length +
-      ' z kompetencjami, ' + autoSkills.length + ' auto-skilli, źródła: ' +
+    console.log('OK: ' + unique.length + ' unikalnych ofert, ' + jobs.length +
+      ' z kompetencjami, ' + autoSkills.length + ' auto-skilli, zrodla: ' +
       JSON.stringify(perPortal));
 
     cache = { jobs, cats, time: Date.now() };
     return cache;
   } catch (e) {
-    console.error('❌ Błąd agregacji:', e.message);
+    console.error('Blad agregacji:', e.message);
     return { jobs: cache.jobs || FALLBACK, cats: cache.cats || baseCats() };
   }
 }
@@ -317,4 +448,4 @@ async function refresh() {
 app.get('/api/skills', async (req, res) => res.json((await refresh()).cats));
 app.get('/api/jobs',   async (req, res) => res.json((await refresh()).jobs));
 
-app.listen(PORT, () => console.log('✅ Serwer działa: http://localhost:' + PORT));
+app.listen(PORT, () => console.log('Serwer dziala: http://localhost:' + PORT));
