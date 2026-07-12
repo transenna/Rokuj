@@ -1,4 +1,4 @@
-/* server.js – Rokuj: oferty per branża + auto-kompetencje w normalnych kategoriach */
+/* server.js – Rokuj: wiele źródeł ofert (Adzuna + Jooble) */
 const express = require('express');
 const path = require('path');
 const app = express();
@@ -6,10 +6,11 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const APP_ID  = process.env.ADZUNA_APP_ID;
-const APP_KEY = process.env.ADZUNA_APP_KEY;
+const ADZUNA_ID  = process.env.ADZUNA_APP_ID;
+const ADZUNA_KEY = process.env.ADZUNA_APP_KEY;
+const JOOBLE_KEY = process.env.JOOBLE_API_KEY;
 
-/* ---------- ZAPYTANIA PER BRANŻA (zapytanie -> kategoria) ---------- */
+/* ---------- ZAPYTANIA PER BRANŻA ---------- */
 const QUERIES = [
   { q: 'magazynier',           cat: 'Transport i logistyka' },
   { q: 'kierowca',             cat: 'Transport i logistyka' },
@@ -83,7 +84,7 @@ const SKILL_DEFS = {
   },
 };
 
-/* ---------- AUTO-WYKRYWANIE NOWYCH KOMPETENCJI ---------- */
+/* ---------- AUTO-WYKRYWANIE KOMPETENCJI ---------- */
 const CUE = /(?:znajomość|znajomości|obsługa|obsługi|uprawnienia|uprawnień|kurs|certyfikat|licencja|umiejętność|doświadczenie w|biegłość w)\s+([a-ząćęłńóśźż0-9#+][a-ząćęłńóśźż0-9#+./-]*(?:\s+[a-ząćęłńóśźż0-9#+][a-ząćęłńóśźż0-9#+./-]*){0,2})/gi;
 
 const STOP = new Set(('i,oraz,w,we,z,ze,na,do,od,po,za,o,u,dla,przy,pod,jest,są,lub,albo,nie,się,' +
@@ -101,7 +102,6 @@ function cleanPhrase(p) {
   return words.join(' ');
 }
 
-/* Auto-skille z przypisaną kategorią (tą, w której fraza pada najczęściej) */
 function mineSkills(items) {
   const known = [];
   for (const skills of Object.values(SKILL_DEFS)) {
@@ -109,7 +109,6 @@ function mineSkills(items) {
       for (const k of kws) known.push(k);
     }
   }
-
   const freq = {};
   for (const it of items) {
     const inThis = new Set();
@@ -128,7 +127,6 @@ function mineSkills(items) {
       freq[p].byCat[it.cat] = (freq[p].byCat[it.cat] || 0) + 1;
     }
   }
-
   const list = [];
   for (const phrase of Object.keys(freq)) {
     const info = freq[phrase];
@@ -155,8 +153,7 @@ function detectSkills(text, autoSkills) {
   const found = [];
   for (const skills of Object.values(SKILL_DEFS)) {
     for (const skillName of Object.keys(skills)) {
-      const kws = skills[skillName];
-      if (kws.some(k => t.includes(k))) found.push(skillName);
+      if (skills[skillName].some(k => t.includes(k))) found.push(skillName);
     }
   }
   for (const a of autoSkills) {
@@ -165,7 +162,76 @@ function detectSkills(text, autoSkills) {
   return found;
 }
 
-/* ---------- POBIERANIE Z ADZUNA (cache 2 h) ---------- */
+/* ================================================================
+   ŹRÓDŁA OFERT – każde zwraca tablicę w formacie wewnętrznym:
+   { title, company, location, text, cat, url, portal }
+   ================================================================ */
+
+/* ---------- ŹRÓDŁO 1: Adzuna ---------- */
+async function fetchAdzuna() {
+  if (!ADZUNA_ID || !ADZUNA_KEY) return [];
+  const out = [];
+  for (const query of QUERIES) {
+    try {
+      const url = 'https://api.adzuna.com/v1/api/jobs/pl/search/1' +
+        '?app_id=' + ADZUNA_ID + '&app_key=' + ADZUNA_KEY +
+        '&results_per_page=50&what_or=' + encodeURIComponent(query.q) +
+        '&content-type=application/json';
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      for (const r of (data.results || [])) {
+        out.push({
+          title: r.title || 'Oferta pracy',
+          company: (r.company && r.company.display_name) ? r.company.display_name : '',
+          location: (r.location && r.location.display_name) ? r.location.display_name : '',
+          text: (r.title || '') + ' ' + (r.description || ''),
+          cat: query.cat,
+          url: r.redirect_url || '#',
+          portal: 'Adzuna',
+        });
+      }
+    } catch (e) {
+      console.error('Adzuna (' + query.q + '):', e.message);
+    }
+  }
+  return out;
+}
+
+/* ---------- ŹRÓDŁO 2: Jooble ---------- */
+async function fetchJooble() {
+  if (!JOOBLE_KEY) return [];
+  const out = [];
+  for (const query of QUERIES) {
+    try {
+      const resp = await fetch('https://pl.jooble.org/api/' + JOOBLE_KEY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords: query.q, location: '', page: 1 }),
+      });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      for (const r of (data.jobs || [])) {
+        out.push({
+          title: r.title || 'Oferta pracy',
+          company: r.company || '',
+          location: r.location || '',
+          text: (r.title || '') + ' ' + (r.snippet || ''),
+          cat: query.cat,
+          url: r.link || '#',
+          portal: 'Jooble',
+        });
+      }
+    } catch (e) {
+      console.error('Jooble (' + query.q + '):', e.message);
+    }
+  }
+  return out;
+}
+
+/* ================================================================
+   AGREGACJA + CACHE
+   ================================================================ */
 let cache = { jobs: null, cats: null, time: 0 };
 const TTL = 2 * 60 * 60 * 1000;
 
@@ -183,69 +249,66 @@ function baseCats() {
   return cats;
 }
 
+/* deduplikacja: po URL oraz po znormalizowanym tytule+firmie */
+function dedupe(list) {
+  const seen = new Set();
+  const out = [];
+  for (const r of list) {
+    const keyUrl = r.url;
+    const keyText = (r.title + '|' + r.company).toLowerCase().replace(/\s+/g, ' ').trim();
+    if (seen.has(keyUrl) || seen.has(keyText)) continue;
+    seen.add(keyUrl);
+    seen.add(keyText);
+    out.push(r);
+  }
+  return out;
+}
+
 async function refresh() {
   if (cache.jobs && Date.now() - cache.time < TTL) return cache;
-  if (!APP_ID || !APP_KEY) return { jobs: FALLBACK, cats: baseCats() };
 
   try {
-    const raw = [];
-    for (const query of QUERIES) {
-      const url = 'https://api.adzuna.com/v1/api/jobs/pl/search/1' +
-        '?app_id=' + APP_ID + '&app_key=' + APP_KEY +
-        '&results_per_page=50&what_or=' + encodeURIComponent(query.q) +
-        '&content-type=application/json';
-      const resp = await fetch(url);
-      if (resp.ok) {
-        const data = await resp.json();
-        for (const r of (data.results || [])) {
-          r._cat = query.cat;
-          raw.push(r);
-        }
-      }
-    }
+    const results = await Promise.all([fetchAdzuna(), fetchJooble()]);
+    let all = [];
+    for (const part of results) all = all.concat(part);
 
-    /* deduplikacja po adresie oferty */
-    const seen = new Set();
-    const unique = raw.filter(r => !seen.has(r.redirect_url) && seen.add(r.redirect_url));
+    const unique = dedupe(all);
+    if (!unique.length) return { jobs: cache.jobs || FALLBACK, cats: cache.cats || baseCats() };
 
-    const items = unique.map(r => ({
-      text: (r.title || '') + ' ' + (r.description || ''),
-      cat: r._cat,
-    }));
-
+    const items = unique.map(r => ({ text: r.text, cat: r.cat }));
     const autoSkills = mineSkills(items);
 
     const jobs = [];
-    for (let i = 0; i < unique.length; i++) {
-      const r = unique.at(i);
-      const it = items.at(i);
-      const skills = detectSkills(it.text, autoSkills);
+    for (const r of unique) {
+      const skills = detectSkills(r.text, autoSkills);
       if (!skills.length) continue;
       jobs.push({
-        title: r.title || 'Oferta pracy',
-        company: (r.company && r.company.display_name) ? r.company.display_name : '',
-        location: (r.location && r.location.display_name) ? r.location.display_name : '',
-        remote: /zdaln|remote|home office/i.test(it.text),
-        portal: 'Adzuna',
-        url: r.redirect_url || '#',
+        title: r.title,
+        company: r.company,
+        location: r.location,
+        remote: /zdaln|remote|home office/i.test(r.text),
+        portal: r.portal,
+        url: r.url,
         skills: skills,
       });
     }
 
-    /* auto-skille dopisywane do NORMALNYCH kategorii */
     const cats = baseCats();
     for (const a of autoSkills) {
       if (!cats[a.cat]) cats[a.cat] = [];
       if (!cats[a.cat].includes(a.name)) cats[a.cat].push(a.name);
     }
 
+    const perPortal = {};
+    for (const j of jobs) perPortal[j.portal] = (perPortal[j.portal] || 0) + 1;
     console.log('✅ ' + unique.length + ' unikalnych ofert, ' + jobs.length +
-      ' z kompetencjami, ' + autoSkills.length + ' auto-skilli');
+      ' z kompetencjami, ' + autoSkills.length + ' auto-skilli, źródła: ' +
+      JSON.stringify(perPortal));
 
     cache = { jobs, cats, time: Date.now() };
     return cache;
   } catch (e) {
-    console.error('❌ Błąd Adzuna:', e.message);
+    console.error('❌ Błąd agregacji:', e.message);
     return { jobs: cache.jobs || FALLBACK, cats: cache.cats || baseCats() };
   }
 }
