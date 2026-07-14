@@ -599,6 +599,31 @@ app.get('/api/test-jooble', async (req, res) => {
   }
   res.json(report);
 });
+/* --- TYMCZASOWY TEST CBOP (do skasowania po diagnozie) --- */
+app.get('/api/test-cbop', async (req, res) => {
+  const candidates = [
+    'https://oferty.praca.gov.pl/portal/index.cbop',
+    'https://oferty.praca.gov.pl/portal/api/oferty?page=0&size=5',
+    'https://oferty.praca.gov.pl/portal/api/public/oferty?page=0&size=5',
+    'https://oferty.praca.gov.pl/api/oferty?page=0&size=5',
+    'https://oferty.praca.gov.pl/portal/api/szukaj?page=0&size=5',
+  ];
+  const report = [];
+  for (const url of candidates) {
+    try {
+      const resp = await fetch(url, {
+        headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 (RokujPL)' },
+      });
+      const ct = resp.headers.get('content-type') || '';
+      let body = await resp.text();
+      body = body.replace(/\s+/g, ' ').slice(0, 250);
+      report.push({ url: url, status: resp.status, typ: ct, poczatek: body });
+    } catch (e) {
+      report.push({ url: url, blad: e.message });
+    }
+  }
+  res.json(report);
+});
 app.get('/api/skills', async (req, res) => res.json((await refresh()).cats));
 app.get('/api/jobs',   async (req, res) => res.json((await refresh()).jobs));
 
