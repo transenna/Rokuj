@@ -563,6 +563,42 @@ async function refresh() {
 }
 
 /* ---------- ENDPOINTY ---------- */
+/* --- TYMCZASOWY TEST JOOBLE (do skasowania po diagnozie) --- */
+app.get('/api/test-jooble', async (req, res) => {
+  if (!JOOBLE_KEY) return res.json({ error: 'brak klucza' });
+  const variants = [
+    { name: 'A: Polska',   body: { keywords: 'magazynier', location: 'Polska' } },
+    { name: 'B: Poland',   body: { keywords: 'magazynier', location: 'Poland' } },
+    { name: 'C: Warszawa', body: { keywords: 'magazynier', location: 'Warszawa' } },
+    { name: 'D: puste',    body: { keywords: 'magazynier', location: '' } },
+  ];
+  const report = [];
+  for (const v of variants) {
+    try {
+      const resp = await fetch('https://jooble.org/api/' + JOOBLE_KEY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(v.body),
+      });
+      if (!resp.ok) { report.push({ wariant: v.name, blad: 'HTTP ' + resp.status }); continue; }
+      const data = await resp.json();
+      const jobsArr = data.jobs || [];
+      const sample = [];
+      for (const r of jobsArr.slice(0, 3)) {
+        sample.push((r.title || '?') + ' @ ' + (r.location || '?'));
+      }
+      report.push({
+        wariant: v.name,
+        totalCount: data.totalCount,
+        zwrocone: jobsArr.length,
+        przyklady: sample,
+      });
+    } catch (e) {
+      report.push({ wariant: v.name, blad: e.message });
+    }
+  }
+  res.json(report);
+});
 app.get('/api/skills', async (req, res) => res.json((await refresh()).cats));
 app.get('/api/jobs',   async (req, res) => res.json((await refresh()).jobs));
 
