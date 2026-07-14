@@ -198,41 +198,48 @@ async function fetchAdzuna() {
 /* ---------- ŹRÓDŁO 2: Jooble ---------- */
 async function fetchJooble() {
   if (!JOOBLE_KEY) { console.log('Jooble: brak klucza, pomijam'); return []; }
+  const hosts = ['https://pl.jooble.org/api/', 'https://jooble.org/api/'];
   const out = [];
-  for (const query of QUERIES) {
-    try {
-      const resp = await fetch('https://jooble.org/api/' + JOOBLE_KEY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keywords: query.q, location: '' }),
-      });
-      if (!resp.ok) {
-        console.error('Jooble (' + query.q + '): HTTP ' + resp.status);
-        continue;
-      }
-      const data = await resp.json();
-      const jobsArr = data.jobs || [];
-      if (!jobsArr.length && out.length === 0) {
-        console.log('Jooble: pola odpowiedzi: ' + Object.keys(data).join(' | '));
-      }
-      for (const r of jobsArr) {
-        out.push({
-          title: r.title || 'Oferta pracy',
-          company: r.company || '',
-          location: r.location || '',
-          text: (r.title || '') + ' ' + (r.snippet || ''),
-          cat: query.cat,
-          url: r.link || '#',
-          portal: 'Jooble',
+  let hostUsed = '';
+  for (const host of hosts) {
+    out.length = 0;
+    let failed = false;
+    for (const query of QUERIES) {
+      try {
+        const resp = await fetch(host + JOOBLE_KEY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keywords: query.q, location: 'Polska' }),
         });
+        if (!resp.ok) {
+          console.error('Jooble [' + host + '] (' + query.q + '): HTTP ' + resp.status);
+          failed = true;
+          break;
+        }
+        const data = await resp.json();
+        for (const r of (data.jobs || [])) {
+          out.push({
+            title: r.title || 'Oferta pracy',
+            company: r.company || '',
+            location: r.location || '',
+            text: (r.title || '') + ' ' + (r.snippet || ''),
+            cat: query.cat,
+            url: r.link || '#',
+            portal: 'Jooble',
+          });
+        }
+      } catch (e) {
+        console.error('Jooble [' + host + '] (' + query.q + '):', e.message);
+        failed = true;
+        break;
       }
-    } catch (e) {
-      console.error('Jooble (' + query.q + '):', e.message);
     }
+    if (!failed) { hostUsed = host; break; }
   }
-  console.log('Jooble: pobrano ' + out.length + ' ofert');
+  console.log('Jooble: pobrano ' + out.length + ' ofert (host: ' + hostUsed + ')');
   return out;
 }
+
 
 /* ---------- ŹRÓDŁO: Careerjet ---------- */
 async function fetchCareerjet() {
