@@ -232,10 +232,13 @@ async function fetchCareerjet() {
   const out = [];
   for (const query of QUERIES) {
     try {
-      const url = 'https://search.api.careerjet.net/v4/query' +
+            const url = 'https://search.api.careerjet.net/v4/query' +
         '?locale_code=pl_PL' +
         '&keywords=' + encodeURIComponent(query.q) +
-        '&pagesize=50&page=1';
+        '&pagesize=50&page=1' +
+        '&user_ip=1.2.3.4' +
+        '&user_agent=' + encodeURIComponent('Mozilla/5.0 (RokujPL)');
+
       const resp = await fetch(url, {
         headers: {
           'Authorization': auth,
