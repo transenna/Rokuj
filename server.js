@@ -197,18 +197,25 @@ async function fetchAdzuna() {
 
 /* ---------- ŹRÓDŁO 2: Jooble ---------- */
 async function fetchJooble() {
-  if (!JOOBLE_KEY) return [];
+  if (!JOOBLE_KEY) { console.log('Jooble: brak klucza, pomijam'); return []; }
   const out = [];
   for (const query of QUERIES) {
     try {
-      const resp = await fetch('https://pl.jooble.org/api/' + JOOBLE_KEY, {
+      const resp = await fetch('https://jooble.org/api/' + JOOBLE_KEY, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keywords: query.q, location: '', page: 1 }),
+        body: JSON.stringify({ keywords: query.q, location: '' }),
       });
-      if (!resp.ok) continue;
+      if (!resp.ok) {
+        console.error('Jooble (' + query.q + '): HTTP ' + resp.status);
+        continue;
+      }
       const data = await resp.json();
-      for (const r of (data.jobs || [])) {
+      const jobsArr = data.jobs || [];
+      if (!jobsArr.length && out.length === 0) {
+        console.log('Jooble: pola odpowiedzi: ' + Object.keys(data).join(' | '));
+      }
+      for (const r of jobsArr) {
         out.push({
           title: r.title || 'Oferta pracy',
           company: r.company || '',
@@ -223,8 +230,10 @@ async function fetchJooble() {
       console.error('Jooble (' + query.q + '):', e.message);
     }
   }
+  console.log('Jooble: pobrano ' + out.length + ' ofert');
   return out;
 }
+
 /* ---------- ŹRÓDŁO: Careerjet ---------- */
 async function fetchCareerjet() {
   if (!CAREERJET_KEY) return [];
@@ -500,7 +509,8 @@ async function refresh() {
   if (cache.jobs && Date.now() - cache.time < TTL) return cache;
 
   try {
-    const results = await Promise.all([fetchAdzuna(), fetchJooble(), fetchCareerjet()]);
+        const results = await Promise.all([fetchAdzuna(), fetchJooble()]);
+
     let all = [];
     for (const part of results) all = all.concat(part);
 
