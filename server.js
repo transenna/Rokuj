@@ -517,7 +517,7 @@ async function refresh() {
   if (cache.jobs && Date.now() - cache.time < TTL) return cache;
 
   try {
-        const results = await Promise.all([fetchAdzuna()]);
+    const results = await Promise.all([fetchAdzuna(), fetchCareerjet()]);
 
     let all = [];
     for (const part of results) all = all.concat(part);
