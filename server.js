@@ -22,68 +22,182 @@ const JOBS_FILE = path.join(__dirname, 'jobs.json');
 
 /* ---------- SLOWNIK BAZOWY ---------- */
 const SKILL_DEFS = {
+  'Kompetencje uniwersalne': {
+    'Kreatywność': ['kreatywn', 'twórcze podejście', 'twórczego podejścia', 'pomysłowoś'],
+    'Komunikatywność': ['komunikatywn', 'umiejętności komunikacyjne', 'łatwość nawiązywania'],
+    'Praca w zespole': ['w zespole', 'zespołow', 'współprac'],
+    'Samodzielność': ['samodzieln'],
+    'Dyspozycyjność': ['dyspozycyjn'],
+    'Odporność na stres': ['odporność na stres', 'odporności na stres', 'pod presją', 'ze stresem'],
+    'Zaangażowanie': ['zaangażowan', 'motywacj'],
+    'Dokładność i sumienność': ['dokładnoś', 'skrupulatn', 'sumiennoś', 'rzetelnoś', 'staranności', 'staranność'],
+    'Punktualność': ['punktualn'],
+    'Dobra organizacja pracy': ['organizacji pracy', 'organizacja pracy', 'organizacji czasu', 'zarządzanie czasem'],
+    'Wysoka kultura osobista': ['kultura osobista', 'kultury osobistej'],
+    'Umiejętności analityczne': ['analityczn'],
+    'Chęć do nauki i rozwoju': ['chęć do nauki', 'chęci do nauki', 'gotowość do nauki', 'szybkiego uczenia', 'chęć rozwoju', 'chęci rozwoju'],
+    'Obsługa komputera': ['obsługa komputera', 'obsługi komputera', 'znajomość komputera', 'komputerow'],
+    'Sprawność fizyczna': ['praca fizyczna', 'pracy fizycznej', 'sprawność fizyczna', 'sprawności fizycznej', 'dźwigani'],
+    'Gotowość do pracy zmianowej': ['zmianow', 'trzy zmiany', 'praca w nocy', 'nocne zmiany'],
+    'Niekaralność': ['niekaraln'],
+  },
+  'Języki obce': {
+    'Język angielski': ['angielsk', 'english'],
+    'Język niemiecki': ['niemieck', 'german'],
+    'Język francuski': ['francusk'],
+    'Język hiszpański': ['hiszpańsk'],
+    'Język włoski': ['włosk'],
+    'Język ukraiński': ['ukraińsk'],
+    'Język rosyjski': ['rosyjsk'],
+    'Język czeski': ['czesk'],
+    'Język niderlandzki': ['niderlandzk', 'holendersk'],
+  },
   'IT i programowanie': {
     'Python': ['python'],
-    'JavaScript': ['javascript', 'react', 'node.js'],
-    'SQL': ['sql', 'baz danych'],
-    'Excel': ['excel'],
-    'Helpdesk': ['helpdesk', 'wsparcie it', 'service desk'],
-    'Testowanie oprogramowania': ['tester', 'testowani', 'testów'],
+    'JavaScript': ['javascript', 'react', 'node.js', 'vue', 'angular'],
+    'Java': [' java ', 'języka java', 'język java'],
+    'C#/.NET': ['c#', '.net'],
+    'PHP': ['php'],
+    'SQL i bazy danych': ['sql', 'baz danych', 'bazy danych'],
+    'Excel (zaawansowany)': ['excel'],
+    'Administracja sieciami': ['sieci komputerow', 'lan', 'vpn', 'windows server', 'linux'],
+    'Helpdesk / wsparcie IT': ['helpdesk', 'wsparcie it', 'wsparcia it', 'service desk'],
+    'Testowanie oprogramowania': ['tester', 'testowani', 'testów oprogramowania', 'qa'],
+    'DevOps / chmura': ['devops', 'docker', 'kubernetes', 'aws', 'azure'],
+    'Cyberbezpieczeństwo': ['cyberbezpiecze', 'bezpieczeństwa it', 'security'],
   },
-  'Produkcja i budownictwo': {
-    'Uprawnienia SEP': ['sep', 'uprawnienia elektryczne', 'elektryk'],
-    'Wózek widłowy (UDT)': ['wózki widłowe', 'wózka widłowego', 'wózek widłowy', 'udt'],
-    'Spawanie MAG/TIG': ['spawacz', 'spawani', 'spawanie'],
+  'Produkcja i technika': {
+    'Uprawnienia SEP (elektryczne)': ['sep', 'uprawnienia elektryczne', 'elektryk'],
+    'Wózek widłowy (UDT)': ['wózki widłowe', 'wózka widłowego', 'wózek widłowy', 'wózków widłowych', 'udt'],
+    'Spawanie (MAG/TIG/MMA)': ['spawacz', 'spawani', 'spawanie', 'spawalnicz'],
     'Obsługa CNC': ['cnc'],
-    'Czytanie rysunku technicznego': ['rysunku technicznego', 'rysunek techniczny'],
-    'Obsługa maszyn produkcyjnych': ['maszyn produkcyjnych', 'linii produkcyjnej', 'operator produkcji'],
+    'Obróbka skrawaniem': ['tokarz', 'frezer', 'skrawani'],
+    'Czytanie rysunku technicznego': ['rysunku technicznego', 'rysunek techniczny', 'dokumentacji technicznej', 'schemat'],
+    'Obsługa maszyn produkcyjnych': ['maszyn produkcyjnych', 'linii produkcyjnej', 'operator produkcji', 'obsługa maszyn'],
+    'Montaż i serwis urządzeń': ['monter', 'montaż', 'montażu', 'serwisant', 'konserwator'],
+    'Automatyka przemysłowa': ['automatyk', 'plc', 'sterownik'],
+    'Kontrola jakości': ['kontrola jakości', 'kontroli jakości', 'kontroler jakości'],
+    'Elektronika': ['elektronik', 'lutowani'],
+    'Mechanika pojazdowa': ['mechanik samochodow', 'mechanika pojazdow', 'diagnost'],
+    'Lakiernictwo': ['lakiernik', 'lakierni'],
+    'Ślusarstwo': ['ślusarz', 'ślusarsk'],
+  },
+  'Budownictwo': {
+    'Prace wykończeniowe': ['wykończeniow', 'glazurnik', 'malarz', 'tynkarz', 'szpachlowani', 'gipsow'],
+    'Murarstwo': ['murarz', 'murarsk'],
+    'Ciesielstwo i zbrojarstwo': ['cieśla', 'ciesielsk', 'zbrojarz', 'szalunk'],
+    'Dekarstwo': ['dekarz', 'dekarsk', 'pokryć dachowych'],
+    'Instalacje hydrauliczne': ['hydraulik', 'instalacje sanitarne', 'instalacji sanitarnych', 'wod-kan'],
+    'Instalacje elektryczne (budowlane)': ['instalacje elektryczne', 'instalacji elektrycznych', 'elektromonter'],
+    'Operator maszyn budowlanych': ['koparki', 'koparko-ładowark', 'operator maszyn budowlanych', 'ładowarki'],
+    'Brukarstwo': ['brukarz', 'brukarsk', 'kostki brukowej'],
+    'Prace na wysokości': ['na wysokości', 'alpinistyczn'],
+    'Stolarstwo': ['stolarz', 'stolarsk'],
   },
   'Transport i logistyka': {
-    'Prawo jazdy kat. B': ['kat. b', 'kategorii b', 'prawo jazdy b', 'kat.b'],
-    'Prawo jazdy kat. C+E': ['kat. c', 'c+e', 'kategorii c'],
-    'Karta kierowcy': ['karta kierowcy', 'karty kierowcy', 'tachograf'],
-    'Gospodarka magazynowa': ['magazynier', 'magazynie', 'wms', 'inwentaryzac'],
+    'Prawo jazdy kat. B': ['kat. b', 'kat.b', 'kategorii b', 'prawo jazdy b', 'prawa jazdy b'],
+    'Prawo jazdy kat. C': ['kat. c', 'kat.c', 'kategorii c'],
+    'Prawo jazdy kat. C+E': ['c+e', 'ce '],
+    'Prawo jazdy kat. D': ['kat. d', 'kategorii d', 'autobus'],
+    'Karta kierowcy i tachograf': ['karta kierowcy', 'karty kierowcy', 'tachograf'],
+    'Przewóz rzeczy (kwalifikacja)': ['przewóz rzeczy', 'przewozu rzeczy', 'kwalifikacja wstępna', 'kod 95'],
+    'ADR (materiały niebezpieczne)': ['adr'],
+    'Gospodarka magazynowa': ['magazynier', 'magazynie', 'magazynow', 'wms', 'inwentaryzac'],
+    'Kompletacja zamówień': ['kompletacj', 'komisjonowani', 'pakowani'],
+    'Spedycja': ['spedytor', 'spedycj'],
+    'Kurier / dostawca': ['kurier', 'dostawca', 'dowóz', 'dostarczani'],
   },
   'Gastronomia i hotelarstwo': {
-    'Książeczka sanepidowska': ['sanepid', 'książeczka zdrowia', 'książeczkę sanepidowską'],
-    'Przygotowywanie posiłków': ['kucharz', 'kuchni', 'posiłków'],
+    'Książeczka sanepidowska': ['sanepid', 'książeczka zdrowia', 'książeczkę sanepidowską', 'badania sanitarno'],
+    'Gotowanie / kuchnia': ['kucharz', 'kuchni', 'gotowani', 'przygotowywanie posiłków', 'przygotowywania posiłków'],
+    'Cukiernictwo i piekarstwo': ['cukiernik', 'cukierni', 'piekarz', 'piekarni', 'wypiek'],
+    'Pizzerman': ['pizzerman', 'pizzer', 'wypiek pizzy'],
     'Obsługa kelnerska': ['kelner', 'kelnerk'],
-    'Barista': ['barista', 'baristk'],
+    'Barman / barista': ['barman', 'barist', 'przygotowywanie kawy'],
+    'Housekeeping': ['pokojow', 'housekeeping', 'sprzątanie pokoi'],
     'Obsługa recepcji': ['recepcj'],
+    'Pomoc kuchenna': ['pomoc kuchenna', 'pomocy kuchennej', 'zmywak'],
   },
-  'Medycyna i uroda': {
-    'Prawo wykonywania zawodu': ['prawo wykonywania zawodu', 'pwz', 'pielęgniar'],
-    'Opieka nad seniorami': ['opiekun', 'osób starszych', 'seniora', 'seniorów'],
-    'Pierwsza pomoc (KPP)': ['pierwszej pomocy', 'kpp'],
+  'Medycyna i opieka': {
+    'PWZ pielęgniarki/położnej': ['pielęgniar', 'położn'],
+    'PWZ lekarza': ['lekarz', 'lekarsk'],
+    'Ratownictwo medyczne': ['ratownik medyczny', 'ratownictwa medycznego', 'kpp'],
+    'Opieka nad seniorami': ['opiekun osób starszych', 'opiekunka osób starszych', 'osób starszych', 'seniora', 'seniorów', 'opiekun medyczny'],
+    'Opieka nad dziećmi': ['opiekunka dziecięca', 'niania', 'opieka nad dziećmi', 'opieki nad dziećmi'],
+    'Fizjoterapia i masaż': ['fizjoterapeut', 'masażyst', 'rehabilitac'],
+    'Farmacja': ['farmaceut', 'technik farmaceutyczny', 'aptek'],
+    'Stomatologia': ['stomatolog', 'dentyst', 'higienistka stomatologiczna'],
+    'Weterynaria': ['weterynar'],
     'Fryzjerstwo': ['fryzjer', 'strzyżeni'],
-    'Kosmetologia': ['kosmetyczk', 'kosmetolog', 'manicure'],
+    'Kosmetologia': ['kosmetyczk', 'kosmetolog', 'manicure', 'stylizacja paznokci', 'stylizacji paznokci'],
+  },
+  'Edukacja i szkolenia': {
+    'Nauczanie przedszkolne/wczesnoszkolne': ['przedszkol', 'wczesnoszkoln', 'wychowawc'],
+    'Nauczanie przedmiotowe': ['nauczyciel', 'nauczaniu', 'pedagogiczne'],
+    'Lektor języków': ['lektor', 'nauka języka', 'nauki języka'],
+    'Prowadzenie szkoleń': ['trener', 'szkoleniowiec', 'prowadzenie szkoleń', 'prowadzenia szkoleń'],
+    'Instruktor (sport/rekreacja)': ['instruktor'],
+    'Psychologia i terapia': ['psycholog', 'terapeut', 'logoped'],
+  },
+  'Finanse i ubezpieczenia': {
+    'Księgowość': ['księgow', 'rachunkow'],
+    'Kadry i płace': ['kadry i płace', 'kadrowo-płacow', 'kadr i płac', 'naliczanie wynagrodzeń'],
+    'Doradztwo finansowe': ['doradca finansowy', 'doradztwa finansowego', 'produktów finansowych', 'kredyt'],
+    'Ubezpieczenia': ['ubezpiecze', 'agent ubezpieczeniowy'],
+    'Windykacja': ['windykac'],
+    'Analiza finansowa': ['analityk finansowy', 'analizy finansowej', 'controlling'],
+    'Fakturowanie': ['faktur'],
+    'Podatki': ['podatk', 'deklaracji vat', 'vat'],
   },
   'Sprzedaż i obsługa klienta': {
     'Obsługa kasy fiskalnej': ['kasy fiskalnej', 'kasa fiskalna', 'kasjer'],
-    'Techniki sprzedaży': ['sprzedawca', 'sprzedaży', 'handlowiec'],
-    'Obsługa klienta': ['obsługa klienta', 'obsługi klienta', 'obsłudze klienta'],
+    'Techniki sprzedaży': ['sprzedawca', 'sprzedaży', 'handlowiec', 'handlow'],
+    'Obsługa klienta': ['obsługa klienta', 'obsługi klienta', 'obsłudze klienta', 'obsługę klienta'],
     'CRM': ['crm'],
-    'Call center': ['call center', 'infolini'],
+    'Call center / infolinia': ['call center', 'infolini', 'telefoniczna obsługa', 'telemarket'],
+    'Merchandising': ['merchandis', 'ekspozycj', 'wykładanie towaru', 'wykładania towaru'],
+    'Sprzedaż B2B': ['b2b', 'klienta biznesowego', 'klientów biznesowych'],
+    'Doradztwo techniczne': ['doradca techniczny', 'doradztwo techniczne'],
   },
   'Biuro i administracja': {
-    'MS Office': ['ms office', 'pakiet office', 'pakietu office'],
-    'Fakturowanie': ['faktur'],
-    'Kadry i płace': ['kadry i płace', 'kadrowo-płacow', 'kadr i płac'],
-    'Język angielski': ['angielski', 'angielskiego', 'english'],
-    'Księgowość': ['księgow', 'rachunkow'],
+    'MS Office': ['ms office', 'pakiet office', 'pakietu office', 'word', 'powerpoint'],
+    'Prace biurowe': ['prace biurowe', 'prac biurowych', 'administracyjn', 'biurow'],
+    'Obsługa sekretariatu': ['sekretariat', 'sekretarka', 'asystentka zarządu', 'asystent zarządu'],
+    'Obieg dokumentów': ['dokumentacj', 'archiwizacj', 'obieg dokumentów'],
+    'HR i rekrutacja': ['rekrutac', 'hr ', 'zasobów ludzkich'],
+    'Zamówienia publiczne': ['zamówień publicznych', 'zamówienia publiczne', 'przetarg'],
+    'Prawo i umowy': ['prawnik', 'radca prawny', 'umów', 'prawne'],
   },
-  'Sprzątanie i ochrona': {
-    'Sprzątanie obiektów': ['sprzątacz', 'sprzątani', 'utrzymania czystości'],
-    'Ochrona mienia': ['ochroniarz', 'dozór', 'kwalifikowany pracownik ochrony'],
+  'Marketing i media': {
+    'Marketing internetowy': ['marketing', 'kampanii reklamowych', 'kampanie reklamowe'],
+    'Social media': ['social media', 'facebook', 'instagram', 'tiktok'],
+    'Grafika komputerowa': ['grafik', 'photoshop', 'canva', 'illustrator'],
+    'Copywriting': ['copywrit', 'tworzenie treści', 'tworzenia treści', 'redagowani'],
+    'Fotografia i wideo': ['fotograf', 'montaż wideo', 'montażu wideo', 'filmowani'],
+    'SEO/SEM': ['seo', 'sem', 'google ads', 'pozycjonowani'],
+  },
+  'Usługi i inne': {
+    'Sprzątanie obiektów': ['sprzątacz', 'sprzątani', 'utrzymania czystości', 'utrzymanie czystości', 'porządkow'],
+    'Ochrona mienia': ['ochroniarz', 'ochrony fizycznej', 'dozór', 'dozoru', 'kwalifikowany pracownik ochrony', 'portier'],
+    'Ogrodnictwo i zieleń': ['ogrodnik', 'ogrodnicz', 'pielęgnacja zieleni', 'pielęgnacji zieleni', 'koszeni'],
+    'Rolnictwo': ['rolnicz', 'rolnik', 'zbiory', 'gospodarstw'],
+    'Krawiectwo': ['krawiec', 'krawcow', 'szyci'],
+    'Praca przy taśmie / pakowanie': ['pakowacz', 'taśmie produkcyjnej', 'sortowani', 'etykietowani'],
+    'Kierowanie zespołem': ['kierownik', 'brygadzist', 'lider zespołu', 'zarządzanie zespołem', 'zarządzania zespołem', 'koordynator'],
   },
 };
+
 
 /* ---------- AUTO-WYKRYWANIE KOMPETENCJI ---------- */
 const CUE = /(?:znajomość|znajomości|obsługa|obsługi|uprawnienia|uprawnień|kurs|certyfikat|licencja|umiejętność|doświadczenie w|biegłość w)\s+([a-ząćęłńóśźż0-9#+][a-ząćęłńóśźż0-9#+./-]*(?:\s+[a-ząćęłńóśźż0-9#+][a-ząćęłńóśźż0-9#+./-]*){0,2})/gi;
 
 const STOP = new Set(('i,oraz,w,we,z,ze,na,do,od,po,za,o,u,dla,przy,pod,jest,są,lub,albo,nie,się,' +
   'pracy,pracę,praca,firmie,firmy,osoby,osób,godzin,umowy,mile,widziane,widziana,min,itp,np,tym,' +
-  'zakresu,zakresie,obszarze,poziomie,stopniu,warunkiem,atutem,plusem,wymagana,wymagane,dobra,dobrej,bardzo').split(','));
+  'zakresu,zakresie,obszarze,poziomie,stopniu,warunkiem,atutem,plusem,wymagana,wymagane,dobra,dobrej,bardzo,' +
+  'zawodzie,zawodu,podobnym,podobnego,stanowisku,stanowiska,branży,branża,doświadczenie,doświadczenia,' +
+  'presją,presja,wózków,wózkami,schematów,czytania,czytanie,obsługi,obsługa,znajomość,znajomości,' +
+  'innych,inne,każdym,swojej,swojego,naszej,naszego,ważne,gotowość,gotowości,umiejętność,umiejętności').split(','));
+
 
 const MAX_AUTO = 150;
 
@@ -92,8 +206,17 @@ function cleanPhrase(p) {
   while (words.length && STOP.has(words.at(-1))) words.pop();
   while (words.length && STOP.has(words.at(0))) words.shift();
   if (!words.length || words.join(' ').length < 4) return null;
+  /* pojedyncze slowo w przypadku zaleznym = odrzuc */
+  if (words.length === 1) {
+    const w = words.at(0);
+    const badEnd = ['ym', 'im', 'ego', 'emu', 'ach', 'ami', 'ą', 'ę', 'em', 'owi', 'ów'];
+    for (const e of badEnd) {
+      if (w.endsWith(e)) return null;
+    }
+  }
   return words.join(' ');
 }
+
 
 function mineSkills(items) {
   /* prog zalezny od wielkosci bazy: 3 przy malej, wiecej przy duzej */
@@ -313,7 +436,6 @@ async function syncAll() {
     for (let i = 0; i < unique.length; i++) {
       const r = unique.at(i);
       const skills = detectSkills(r.text, autoSkills);
-      if (!skills.length) continue;
       jobs.push({
         title: r.title,
         company: r.company,
