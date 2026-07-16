@@ -40,7 +40,8 @@ const SKILL_DEFS = {
     'Sprawność fizyczna': ['praca fizyczna', 'pracy fizycznej', 'sprawność fizyczna', 'sprawności fizycznej', 'dźwigani'],
     'Gotowość do pracy zmianowej': ['zmianow', 'trzy zmiany', 'praca w nocy', 'nocne zmiany'],
     'Niekaralność': ['niekaraln'],
-  },
+     'Język polski (dla obcokrajowców)': ['języka polskiego', 'język polski'],
+ },
   'Języki obce': {
     'Język angielski': ['angielsk', 'english'],
     'Język niemiecki': ['niemieck', 'german'],
@@ -81,7 +82,11 @@ const SKILL_DEFS = {
     'Mechanika pojazdowa': ['mechanik samochodow', 'mechanika pojazdow', 'diagnost'],
     'Lakiernictwo': ['lakiernik', 'lakierni'],
     'Ślusarstwo': ['ślusarz', 'ślusarsk'],
-  },
+     'Obsługa suwnic': ['suwnic'],
+    'Obsługa elektronarzędzi': ['elektronarzędzi', 'elektronarzędz'],
+    'Narzędzia pomiarowe': ['narzędzi pomiarowych', 'suwmiark', 'mikrometr'],
+    'Obsługa maszyn drukujących': ['maszyn drukujących', 'drukarni', 'poligraf'],
+ },
   'Budownictwo': {
     'Prace wykończeniowe': ['wykończeniow', 'glazurnik', 'malarz', 'tynkarz', 'szpachlowani', 'gipsow'],
     'Murarstwo': ['murarz', 'murarsk'],
@@ -202,10 +207,24 @@ const STOP = new Set(('i,oraz,w,we,z,ze,na,do,od,po,za,o,u,dla,przy,pod,jest,są
 const MAX_AUTO = 150;
 
 function cleanPhrase(p) {
+const BAD_LAST = new Set(('nad,pod,przy,dla,do,od,po,za,bez,sobie,zgodnie,wyłącznie,powyżej,poniżej,' +
+  'związanych,związane,dotyczących,dotyczące,oraz,czy,jako,typu,wobec,według,celu,ramach').split(','));
+const BAD_FIRST = new Set(('wykonywania,wykonywanie,radzenia,radzenie,prowadzenia,prowadzenie,' +
+  'nadzór,nadzoru,kontrola,kontroli,zagadnień,zagadnienia,najlepszych,ustawy,ustaw,programu,podstawowych,' +
+  'innych,inne,pozostałych,wszystkich,klienta,klientów,zespole,zespołu,numerze,numeru').split(','));
+
+function cleanPhrase(p) {
   const words = p.toLowerCase().trim().split(/\s+/);
   while (words.length && STOP.has(words.at(-1))) words.pop();
   while (words.length && STOP.has(words.at(0))) words.shift();
-  if (!words.length || words.join(' ').length < 4) return null;
+  if (!words.length) return null;
+  /* fraza nie moze konczyc sie ani zaczynac slowem wymagajacym kontynuacji */
+  if (BAD_LAST.has(words.at(-1))) return null;
+  if (BAD_FIRST.has(words.at(0))) return null;
+  /* frazy z cyframi lub krotsze niz 4 znaki = smieci */
+  const joined = words.join(' ');
+  if (joined.length < 4) return null;
+  if (/[0-9]/.test(joined)) return null;
   /* pojedyncze slowo w przypadku zaleznym = odrzuc */
   if (words.length === 1) {
     const w = words.at(0);
@@ -214,8 +233,9 @@ function cleanPhrase(p) {
       if (w.endsWith(e)) return null;
     }
   }
-  return words.join(' ');
+  return joined;
 }
+
 
 
 function mineSkills(items) {
@@ -233,10 +253,19 @@ function mineSkills(items) {
     for (const m of it.text.toLowerCase().matchAll(CUE)) {
       const p = cleanPhrase(m.at(1));
       if (!p || STOP.has(p)) continue;
-      let overlaps = false;
+            let overlaps = false;
       for (const k of known) {
         if (p.includes(k) || k.includes(p)) { overlaps = true; break; }
       }
+      if (!overlaps) {
+        for (const w of p.split(' ')) {
+          for (const k of known) {
+            if (w.length > 4 && (k.includes(w.slice(0, 5)) || w.includes(k))) { overlaps = true; break; }
+          }
+          if (overlaps) break;
+        }
+      }
+
       if (!overlaps) inThis.add(p);
     }
     for (const p of inThis) {
