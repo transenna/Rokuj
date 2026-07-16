@@ -14,7 +14,7 @@ const JOOBLE_KEY = process.env.JOOBLE_API_KEY;
 const CAREERJET_KEY = process.env.CAREERJET_API_KEY;
 
 /* ---------- USTAWIENIA SYNCHRONIZACJI ---------- */
-const SYNC_HOURS = <a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[3]</a>;        // godziny nocnego cyklu (mozna dopisac np. 15)
+const SYNC_HOURS = Array.of(3);   // godziny nocnego cyklu (mozna dopisac np. Array.of(3, 15))
 const MAX_PAGES = 100;         // max stron na zrodlo (100 x 50 = 5000 ofert)
 const MAX_AGE_DAYS = 30;       // odcinamy oferty starsze niz 30 dni
 const PAUSE_MS = 400;          // grzeczna pauza miedzy zapytaniami
