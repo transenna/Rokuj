@@ -97,7 +97,7 @@ function cleanPhrase(p) {
 
 function mineSkills(items) {
   /* prog zalezny od wielkosci bazy: 3 przy malej, wiecej przy duzej */
-  const minOffers = Math.max(3, Math.round(items.length / 500));
+  const minOffers = Math.max(3, Math.round(items.length / 1500));
   const known = [];
   for (const skills of Object.values(SKILL_DEFS)) {
     for (const kws of Object.values(skills)) {
