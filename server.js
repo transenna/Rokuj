@@ -206,7 +206,6 @@ const STOP = new Set(('i,oraz,w,we,z,ze,na,do,od,po,za,o,u,dla,przy,pod,jest,są
 
 const MAX_AUTO = 150;
 
-function cleanPhrase(p) {
 const BAD_LAST = new Set(('nad,pod,przy,dla,do,od,po,za,bez,sobie,zgodnie,wyłącznie,powyżej,poniżej,' +
   'związanych,związane,dotyczących,dotyczące,oraz,czy,jako,typu,wobec,według,celu,ramach').split(','));
 const BAD_FIRST = new Set(('wykonywania,wykonywanie,radzenia,radzenie,prowadzenia,prowadzenie,' +
