@@ -1,7 +1,8 @@
-/* server.js – Rokuj: Adzuna + Jooble + CBOP */
+/* server.js – Rokuj: nocna synchronizacja, glebokie pobieranie, jobs.json */
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -12,24 +13,14 @@ const ADZUNA_KEY = process.env.ADZUNA_APP_KEY;
 const JOOBLE_KEY = process.env.JOOBLE_API_KEY;
 const CAREERJET_KEY = process.env.CAREERJET_API_KEY;
 
+/* ---------- USTAWIENIA SYNCHRONIZACJI ---------- */
+const SYNC_HOURS = <a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[3]</a>;        // godziny nocnego cyklu (mozna dopisac np. 15)
+const MAX_PAGES = 100;         // max stron na zrodlo (100 x 50 = 5000 ofert)
+const MAX_AGE_DAYS = 30;       // odcinamy oferty starsze niz 30 dni
+const PAUSE_MS = 400;          // grzeczna pauza miedzy zapytaniami
+const JOBS_FILE = path.join(__dirname, 'jobs.json');
 
-/* ---------- ZAPYTANIA PER BRANŻA ---------- */
-const QUERIES = [
-  { q: 'magazynier',           cat: 'Transport i logistyka' },
-  { q: 'kierowca',             cat: 'Transport i logistyka' },
-  { q: 'sprzedawca kasjer',    cat: 'Sprzedaż i obsługa klienta' },
-  { q: 'kucharz kelner',       cat: 'Gastronomia i hotelarstwo' },
-  { q: 'opiekun pielęgniarka', cat: 'Medycyna i uroda' },
-  { q: 'fryzjer kosmetyczka',  cat: 'Medycyna i uroda' },
-  { q: 'elektryk spawacz',     cat: 'Produkcja i budownictwo' },
-  { q: 'operator produkcji',   cat: 'Produkcja i budownictwo' },
-  { q: 'programista tester',   cat: 'IT i programowanie' },
-  { q: 'księgowość kadry',     cat: 'Biuro i administracja' },
-  { q: 'biuro administracja',  cat: 'Biuro i administracja' },
-  { q: 'sprzątanie ochrona',   cat: 'Sprzątanie i ochrona' },
-];
-
-/* ---------- SŁOWNIK BAZOWY ---------- */
+/* ---------- SLOWNIK BAZOWY ---------- */
 const SKILL_DEFS = {
   'IT i programowanie': {
     'Python': ['python'],
@@ -94,8 +85,7 @@ const STOP = new Set(('i,oraz,w,we,z,ze,na,do,od,po,za,o,u,dla,przy,pod,jest,są
   'pracy,pracę,praca,firmie,firmy,osoby,osób,godzin,umowy,mile,widziane,widziana,min,itp,np,tym,' +
   'zakresu,zakresie,obszarze,poziomie,stopniu,warunkiem,atutem,plusem,wymagana,wymagane,dobra,dobrej,bardzo').split(','));
 
-const MIN_OFFERS = 3;
-const MAX_AUTO   = 40;
+const MAX_AUTO = 150;
 
 function cleanPhrase(p) {
   const words = p.toLowerCase().trim().split(/\s+/);
@@ -106,6 +96,8 @@ function cleanPhrase(p) {
 }
 
 function mineSkills(items) {
+  /* prog zalezny od wielkosci bazy: 3 przy malej, wiecej przy duzej */
+  const minOffers = Math.max(3, Math.round(items.length / 500));
   const known = [];
   for (const skills of Object.values(SKILL_DEFS)) {
     for (const kws of Object.values(skills)) {
@@ -133,7 +125,7 @@ function mineSkills(items) {
   const list = [];
   for (const phrase of Object.keys(freq)) {
     const info = freq[phrase];
-    if (info.total >= MIN_OFFERS) list.push({ phrase, info });
+    if (info.total >= minOffers) list.push({ phrase, info });
   }
   list.sort((a, b) => b.info.total - a.info.total);
 
@@ -148,6 +140,7 @@ function mineSkills(items) {
     const name = item.phrase.charAt(0).toUpperCase() + item.phrase.slice(1);
     result.push({ name, keywords: [item.phrase], cat: bestCat });
   }
+  console.log('Auto-skille: ' + result.length + ' (prog: ' + minOffers + ' ofert)');
   return result;
 }
 
@@ -165,134 +158,7 @@ function detectSkills(text, autoSkills) {
   return found;
 }
 
-/* ---------- ŹRÓDŁO 1: Adzuna ---------- */
-async function fetchAdzuna() {
-  if (!ADZUNA_ID || !ADZUNA_KEY) return [];
-  const out = [];
-  for (const query of QUERIES) {
-    try {
-      const url = 'https://api.adzuna.com/v1/api/jobs/pl/search/1' +
-        '?app_id=' + ADZUNA_ID + '&app_key=' + ADZUNA_KEY +
-        '&results_per_page=50&what_or=' + encodeURIComponent(query.q) +
-        '&content-type=application/json';
-      const resp = await fetch(url);
-      if (!resp.ok) continue;
-      const data = await resp.json();
-      for (const r of (data.results || [])) {
-        out.push({
-          title: r.title || 'Oferta pracy',
-          company: (r.company && r.company.display_name) ? r.company.display_name : '',
-          location: (r.location && r.location.display_name) ? r.location.display_name : '',
-          text: (r.title || '') + ' ' + (r.description || ''),
-          cat: query.cat,
-          url: r.redirect_url || '#',
-          portal: 'Adzuna',
-        });
-      }
-    } catch (e) {
-      console.error('Adzuna (' + query.q + '):', e.message);
-    }
-  }
-  return out;
-}
-
-/* ---------- ŹRÓDŁO 2: Jooble ---------- */
-async function fetchJooble() {
-  if (!JOOBLE_KEY) { console.log('Jooble: brak klucza, pomijam'); return []; }
-  const hosts = ['https://pl.jooble.org/api/', 'https://jooble.org/api/'];
-  const out = [];
-  let hostUsed = '';
-  for (const host of hosts) {
-    out.length = 0;
-    let failed = false;
-    for (const query of QUERIES) {
-      try {
-        const resp = await fetch(host + JOOBLE_KEY, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keywords: query.q, location: 'Polska' }),
-        });
-        if (!resp.ok) {
-          console.error('Jooble [' + host + '] (' + query.q + '): HTTP ' + resp.status);
-          failed = true;
-          break;
-        }
-        const data = await resp.json();
-        for (const r of (data.jobs || [])) {
-          out.push({
-            title: r.title || 'Oferta pracy',
-            company: r.company || '',
-            location: r.location || '',
-            text: (r.title || '') + ' ' + (r.snippet || ''),
-            cat: query.cat,
-            url: r.link || '#',
-            portal: 'Jooble',
-          });
-        }
-      } catch (e) {
-        console.error('Jooble [' + host + '] (' + query.q + '):', e.message);
-        failed = true;
-        break;
-      }
-    }
-    if (!failed) { hostUsed = host; break; }
-  }
-  console.log('Jooble: pobrano ' + out.length + ' ofert (host: ' + hostUsed + ')');
-  return out;
-}
-
-
-/* ---------- ŹRÓDŁO: Careerjet ---------- */
-async function fetchCareerjet() {
-  if (!CAREERJET_KEY) return [];
-  const auth = 'Basic ' + Buffer.from(CAREERJET_KEY + ':').toString('base64');
-  const out = [];
-  for (const query of QUERIES) {
-    try {
-      const url = 'https://search.api.careerjet.net/v4/query' +
-        '?locale_code=pl_PL' +
-        '&keywords=' + encodeURIComponent(query.q) +
-        '&pagesize=50&page=1' +
-        '&user_ip=146.59.12.98' +
-        '&user_agent=' + encodeURIComponent('Mozilla/5.0 (RokujPL)');
-      const resp = await fetch(url, {
-        headers: {
-          'Authorization': auth,
-          'Referer': 'https://rokuj.onrender.com',
-          'User-Agent': 'Mozilla/5.0 (RokujPL; +https://rokuj.onrender.com)',
-        },
-      });
-      if (!resp.ok) {
-        console.error('Careerjet (' + query.q + '): HTTP ' + resp.status);
-        continue;
-      }
-      const data = await resp.json();
-      const jobsArr = data.jobs || (data.data && data.data.jobs) || [];
-      if (!jobsArr.length && out.length === 0) {
-        console.log('Careerjet: pola odpowiedzi: ' + Object.keys(data).join(' | '));
-      }
-      for (const r of jobsArr) {
-        out.push({
-          title: r.title || 'Oferta pracy',
-          company: r.company || '',
-          location: r.locations || r.location || '',
-          text: (r.title || '') + ' ' + (r.description || r.snippet || ''),
-          cat: query.cat,
-          url: r.url || r.link || '#',
-          portal: 'Careerjet',
-        });
-      }
-    } catch (e) {
-      console.error('Careerjet (' + query.q + '):', e.message);
-    }
-  }
-  return out;
-}
-
-/* ---------- ŹRÓDŁO 3: CBOP przez dane.gov.pl ---------- */
-const DANE_API = 'https://api.dane.gov.pl/1.4';
-const CBOP_MAX_ROWS = 4000;
-
+/* przypisanie kategorii po tresci oferty */
 function categoryFor(text) {
   const t = text.toLowerCase();
   let bestCat = 'Biuro i administracja';
@@ -307,190 +173,6 @@ function categoryFor(text) {
   return bestCat;
 }
 
-function parseCSV(data, delim, maxRows) {
-  const rows = [];
-  let row = [];
-  let field = '';
-  let inQ = false;
-  for (let i = 0; i < data.length; i++) {
-    const c = data.charAt(i);
-    if (inQ) {
-      if (c === '"') {
-        if (data.charAt(i + 1) === '"') { field += '"'; i++; }
-        else inQ = false;
-      } else field += c;
-    } else if (c === '"') {
-      inQ = true;
-    } else if (c === delim) {
-      row.push(field); field = '';
-    } else if (c === '\n') {
-      row.push(field); field = '';
-      rows.push(row); row = [];
-      if (rows.length > maxRows) break;
-    } else if (c !== '\r') {
-      field += c;
-    }
-  }
-  if (field.length || row.length) { row.push(field); rows.push(row); }
-  return rows;
-}
-
-function findCol(headers, patterns) {
-  for (let i = 0; i < headers.length; i++) {
-    const h = String(headers[i] || '').toLowerCase();
-    for (const p of patterns) {
-      if (h.includes(p)) return i;
-    }
-  }
-  return -1;
-}
-
-async function fetchCBOP() {
-  try {
-    /* 1. szukamy właściwego zbioru kilkoma frazami */
-    const searches = ['oferty pracy', 'wolne miejsca pracy', 'centralna baza ofert pracy'];
-    let candidates = [];
-    for (const q of searches) {
-      const resp = await fetch(DANE_API + '/datasets?q=' + encodeURIComponent(q) + '&per_page=10');
-      if (!resp.ok) continue;
-      const data = await resp.json();
-      for (const d of (data.data || [])) candidates.push(d);
-    }
-    const byId = {};
-    for (const d of candidates) byId[d.id] = d;
-    candidates = Object.values(byId);
-    const titleList = [];
-    for (const d of candidates) {
-      titleList.push('(' + d.id + ') ' + ((d.attributes && d.attributes.title) || ''));
-    }
-    console.log('CBOP kandydaci: ' + titleList.join(' || '));
-
-    let ds = null;
-    for (const d of candidates) {
-      const t = ((d.attributes && d.attributes.title) || '').toLowerCase();
-      if (t.includes('ofert') && t.includes('prac') && !t.includes('agencj')) { ds = d; break; }
-    }
-    if (!ds) { console.error('CBOP: nie znaleziono zbioru z ofertami'); return []; }
-    console.log('CBOP: wybrany zbiór "' + ds.attributes.title + '" (id ' + ds.id + ')');
-
-    /* 2. zasoby: preferuj CSV, akceptuj JSON */
-    const resResp = await fetch(DANE_API + '/datasets/' + ds.id +
-      '/resources?per_page=20&sort=-created');
-    if (!resResp.ok) { console.error('CBOP: resources HTTP ' + resResp.status); return []; }
-    const resData = await resResp.json();
-    const resList = resData.data || [];
-    let res = null;
-    let resFmt = '';
-    const formats = [];
-    for (const r of resList) {
-      const fmt = ((r.attributes && r.attributes.format) || '').toLowerCase();
-      formats.push(fmt);
-      if (!res && fmt.includes('csv')) { res = r; resFmt = 'csv'; }
-    }
-    if (!res) {
-      for (const r of resList) {
-        const fmt = ((r.attributes && r.attributes.format) || '').toLowerCase();
-        if (!res && fmt.includes('json')) { res = r; resFmt = 'json'; }
-      }
-    }
-    if (!res) { console.error('CBOP: brak CSV/JSON, formaty: ' + formats.join(', ')); return []; }
-    const a = res.attributes;
-    const fileUrl = a.file_url || a.download_url || a.link;
-    console.log('CBOP: zasób "' + a.title + '" [' + resFmt + ']');
-    if (!fileUrl) { console.error('CBOP: zasób bez adresu pliku'); return []; }
-
-    const fResp = await fetch(fileUrl);
-    if (!fResp.ok) { console.error('CBOP: plik HTTP ' + fResp.status); return []; }
-
-    /* 3a. wariant JSON */
-    if (resFmt === 'json') {
-      const data = await fResp.json();
-      let arr = null;
-      if (Array.isArray(data)) arr = data;
-      else {
-        for (const k of Object.keys(data)) {
-          if (Array.isArray(data[k]) && data[k].length > 1) { arr = data[k]; break; }
-        }
-      }
-      if (!arr || !arr.length) { console.error('CBOP: JSON bez tablicy ofert'); return []; }
-      console.log('CBOP: pola JSON: ' + Object.keys(arr.at(0)).slice(0, 15).join(' | '));
-      const out = [];
-      for (const rec of arr.slice(0, CBOP_MAX_ROWS)) {
-        let title = '', firm = '', locVal = '', desc = '', urlVal = '';
-        for (const k of Object.keys(rec)) {
-          const kl = k.toLowerCase();
-          const v = String(rec[k] == null ? '' : rec[k]);
-          if (!title && (kl.includes('stanowisko') || kl.includes('zawod') || kl.includes('tytul') || kl.includes('nazwa'))) title = v;
-          else if (!firm && (kl.includes('pracodawc') || kl.includes('firma'))) firm = v;
-          else if (!locVal && (kl.includes('miejscowo') || kl.includes('miejsce') || kl.includes('lokalizac'))) locVal = v;
-          else if (!desc && (kl.includes('opis') || kl.includes('wymagan') || kl.includes('zakres'))) desc = v;
-          else if (!urlVal && (kl.includes('link') || kl.includes('url'))) urlVal = v;
-        }
-        if (!title) continue;
-        const textAll = title + ' ' + desc;
-        out.push({
-          title: title, company: firm, location: locVal, text: textAll,
-          cat: categoryFor(textAll),
-          url: urlVal || 'https://oferty.praca.gov.pl',
-          portal: 'Urzędy pracy (CBOP)',
-        });
-      }
-      console.log('CBOP: wczytano ' + out.length + ' ofert (json)');
-      return out;
-    }
-
-    /* 3b. wariant CSV */
-    const textData = await fResp.text();
-    const nl = textData.indexOf('\n');
-    const firstLine = nl > 0 ? textData.slice(0, nl) : textData;
-    const delim = (firstLine.split(';').length >= firstLine.split(',').length) ? ';' : ',';
-    const rows = parseCSV(textData, delim, CBOP_MAX_ROWS);
-    if (rows.length < 2) { console.error('CBOP: pusty plik'); return []; }
-    const headers = rows.at(0);
-    console.log('CBOP: nagłówki: ' + headers.slice(0, 12).join(' | '));
-    const colTitle = findCol(headers, ['stanowisko', 'zawód', 'zawod', 'tytuł', 'tytul', 'nazwa']);
-    const colFirm  = findCol(headers, ['pracodawc', 'firma']);
-    const colLoc   = findCol(headers, ['miejscowość', 'miejscowosc', 'miejsce', 'lokalizac']);
-    const colDesc  = findCol(headers, ['opis', 'zakres', 'wymagan', 'kwalifikac']);
-    const colUrl   = findCol(headers, ['link', 'url']);
-    if (colTitle < 0) { console.error('CBOP: nie rozpoznano kolumny ze stanowiskiem'); return []; }
-    const out = [];
-    for (let i = 1; i < rows.length; i++) {
-      const r = rows.at(i);
-      if (!r || r.length < 2) continue;
-      const title = String(r[colTitle] || '').trim();
-      if (!title) continue;
-      const desc = colDesc >= 0 ? String(r[colDesc] || '') : '';
-      const textAll = title + ' ' + desc;
-      out.push({
-        title: title,
-        company: colFirm >= 0 ? String(r[colFirm] || '').trim() : '',
-        location: colLoc >= 0 ? String(r[colLoc] || '').trim() : '',
-        text: textAll,
-        cat: categoryFor(textAll),
-        url: colUrl >= 0 && r[colUrl] ? String(r[colUrl]).trim() : 'https://oferty.praca.gov.pl',
-        portal: 'Urzędy pracy (CBOP)',
-      });
-    }
-    console.log('CBOP: wczytano ' + out.length + ' ofert (csv)');
-    return out;
-  } catch (e) {
-    console.error('CBOP błąd:', e.message);
-    return [];
-  }
-}
-
-
-/* ---------- AGREGACJA + CACHE ---------- */
-let cache = { jobs: null, cats: null, time: 0 };
-const TTL = 2 * 60 * 60 * 1000;
-
-const FALLBACK = [{
-  title: 'Przykładowa oferta (API niedostępne)', company: 'Rokuj',
-  location: 'Polska', remote: false, portal: 'demo', url: '#',
-  skills: ['Obsługa klienta'],
-}];
-
 function baseCats() {
   const cats = {};
   for (const catName of Object.keys(SKILL_DEFS)) {
@@ -498,6 +180,107 @@ function baseCats() {
   }
   return cats;
 }
+
+function daysAgo(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return Math.floor((Date.now() - d.getTime()) / 86400000);
+}
+
+function pause(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+/* ---------- ZRODLO 1: Adzuna (pelna paginacja) ---------- */
+async function fetchAdzuna() {
+  if (!ADZUNA_ID || !ADZUNA_KEY) { console.log('Adzuna: brak kluczy'); return []; }
+  const out = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    try {
+      const url = 'https://api.adzuna.com/v1/api/jobs/pl/search/' + page +
+        '?app_id=' + ADZUNA_ID + '&app_key=' + ADZUNA_KEY +
+        '&results_per_page=50&sort_by=date&content-type=application/json';
+      const resp = await fetch(url);
+      if (!resp.ok) { console.error('Adzuna str. ' + page + ': HTTP ' + resp.status); break; }
+      const data = await resp.json();
+      const results = data.results || [];
+      if (!results.length) break;
+      let tooOld = false;
+      for (const r of results) {
+        const age = daysAgo(r.created);
+        if (age !== null && age > MAX_AGE_DAYS) { tooOld = true; continue; }
+        out.push({
+          title: r.title || 'Oferta pracy',
+          company: (r.company && r.company.display_name) ? r.company.display_name : '',
+          location: (r.location && r.location.display_name) ? r.location.display_name : '',
+          text: (r.title || '') + ' ' + (r.description || ''),
+          url: r.redirect_url || '#',
+          portal: 'Adzuna',
+          age: age,
+        });
+      }
+      /* sortujemy po dacie, wiec gdy zaczely sie stare - konczymy */
+      if (tooOld) { console.log('Adzuna: str. ' + page + ' - osiagnieto granice 30 dni'); break; }
+      await pause(PAUSE_MS);
+    } catch (e) {
+      console.error('Adzuna str. ' + page + ':', e.message);
+      break;
+    }
+  }
+  console.log('Adzuna: pobrano ' + out.length + ' ofert');
+  return out;
+}
+/* ---------- ZRODLO 2: Careerjet (pelna paginacja) ---------- */
+async function fetchCareerjet() {
+  if (!CAREERJET_KEY) { console.log('Careerjet: brak klucza'); return []; }
+  const auth = 'Basic ' + Buffer.from(CAREERJET_KEY + ':').toString('base64');
+  const out = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    try {
+      const url = 'https://search.api.careerjet.net/v4/query' +
+        '?locale_code=pl_PL&sort=date' +
+        '&pagesize=50&page=' + page +
+        '&user_ip=146.59.12.98' +
+        '&user_agent=' + encodeURIComponent('Mozilla/5.0 (RokujPL)');
+      const resp = await fetch(url, {
+        headers: {
+          'Authorization': auth,
+          'Referer': 'https://rokuj.onrender.com',
+          'User-Agent': 'Mozilla/5.0 (RokujPL; +https://rokuj.onrender.com)',
+        },
+      });
+      if (!resp.ok) { console.error('Careerjet str. ' + page + ': HTTP ' + resp.status); break; }
+      const data = await resp.json();
+      const results = data.jobs || [];
+      if (!results.length) break;
+      let tooOld = false;
+      for (const r of results) {
+        const age = daysAgo(r.date);
+        if (age !== null && age > MAX_AGE_DAYS) { tooOld = true; continue; }
+        out.push({
+          title: (r.title || 'Oferta pracy').replace(/<[^>]*>/g, ''),
+          company: r.company || '',
+          location: r.locations || r.location || '',
+          text: ((r.title || '') + ' ' + (r.description || '')).replace(/<[^>]*>/g, ' '),
+          url: r.url || '#',
+          portal: 'Careerjet',
+          age: age,
+        });
+      }
+      if (tooOld) { console.log('Careerjet: str. ' + page + ' - osiagnieto granice 30 dni'); break; }
+      await pause(PAUSE_MS);
+    } catch (e) {
+      console.error('Careerjet str. ' + page + ':', e.message);
+      break;
+    }
+  }
+  console.log('Careerjet: pobrano ' + out.length + ' ofert');
+  return out;
+}
+
+/* ---------- SYNCHRONIZACJA ---------- */
+let DATA = { jobs: [], cats: baseCats(), lastSync: null };
+let syncing = false;
 
 function dedupe(list) {
   const seen = new Set();
@@ -513,23 +296,22 @@ function dedupe(list) {
   return out;
 }
 
-async function refresh() {
-  if (cache.jobs && Date.now() - cache.time < TTL) return cache;
-
+async function syncAll() {
+  if (syncing) { console.log('Sync: juz trwa, pomijam'); return; }
+  syncing = true;
+  console.log('=== SYNC START ' + new Date().toISOString() + ' ===');
   try {
-    const results = await Promise.all([fetchAdzuna(), fetchCareerjet()]);
+    const adzuna = await fetchAdzuna();
+    const careerjet = await fetchCareerjet();
+    const unique = dedupe(adzuna.concat(careerjet));
+    console.log('Sync: ' + unique.length + ' unikalnych ofert');
 
-    let all = [];
-    for (const part of results) all = all.concat(part);
-
-    const unique = dedupe(all);
-    if (!unique.length) return { jobs: cache.jobs || FALLBACK, cats: cache.cats || baseCats() };
-
-    const items = unique.map(r => ({ text: r.text, cat: r.cat }));
+    const items = unique.map(r => ({ text: r.text, cat: categoryFor(r.text) }));
     const autoSkills = mineSkills(items);
 
     const jobs = [];
-    for (const r of unique) {
+    for (let i = 0; i < unique.length; i++) {
+      const r = unique.at(i);
       const skills = detectSkills(r.text, autoSkills);
       if (!skills.length) continue;
       jobs.push({
@@ -540,6 +322,7 @@ async function refresh() {
         portal: r.portal,
         url: r.url,
         skills: skills,
+        age: r.age,
       });
     }
 
@@ -547,61 +330,61 @@ async function refresh() {
     for (const a of autoSkills) {
       if (!cats[a.cat]) cats[a.cat] = [];
       if (!cats[a.cat].includes(a.name)) cats[a.cat].push(a.name);
-        }
+    }
 
     const perPortal = {};
     for (const j of jobs) perPortal[j.portal] = (perPortal[j.portal] || 0) + 1;
-    console.log('OK: ' + unique.length + ' unikalnych ofert, ' + jobs.length +
-      ' z kompetencjami, ' + autoSkills.length + ' auto-skilli, zrodla: ' +
-      JSON.stringify(perPortal));
+    console.log('=== SYNC OK: ' + jobs.length + ' ofert z kompetencjami, zrodla: ' +
+      JSON.stringify(perPortal) + ' ===');
 
-    cache = { jobs, cats, time: Date.now() };
-    return cache;
+    DATA = { jobs, cats, lastSync: new Date().toISOString() };
+    fs.writeFileSync(JOBS_FILE, JSON.stringify(DATA));
+    console.log('Sync: zapisano jobs.json');
   } catch (e) {
-    console.error('Blad agregacji:', e.message);
-    return { jobs: cache.jobs || FALLBACK, cats: cache.cats || baseCats() };
+    console.error('SYNC BLAD:', e.message);
   }
+  syncing = false;
 }
 
-/* ---------- ENDPOINTY ---------- */
-/* --- TYMCZASOWY TEST JOOBLE (do skasowania po diagnozie) --- */
-app.get('/api/test-jooble', async (req, res) => {
-  if (!JOOBLE_KEY) return res.json({ error: 'brak klucza' });
-  const variants = [
-    { name: 'A: Polska',   body: { keywords: 'magazynier', location: 'Polska' } },
-    { name: 'B: Poland',   body: { keywords: 'magazynier', location: 'Poland' } },
-    { name: 'C: Warszawa', body: { keywords: 'magazynier', location: 'Warszawa' } },
-    { name: 'D: puste',    body: { keywords: 'magazynier', location: '' } },
-  ];
-  const report = [];
-  for (const v of variants) {
-    try {
-      const resp = await fetch('https://jooble.org/api/' + JOOBLE_KEY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(v.body),
-      });
-      if (!resp.ok) { report.push({ wariant: v.name, blad: 'HTTP ' + resp.status }); continue; }
-      const data = await resp.json();
-      const jobsArr = data.jobs || [];
-      const sample = [];
-      for (const r of jobsArr.slice(0, 3)) {
-        sample.push((r.title || '?') + ' @ ' + (r.location || '?'));
-      }
-      report.push({
-        wariant: v.name,
-        totalCount: data.totalCount,
-        zwrocone: jobsArr.length,
-        przyklady: sample,
-      });
-    } catch (e) {
-      report.push({ wariant: v.name, blad: e.message });
+/* wczytaj dane z pliku przy starcie (jesli istnieja) */
+function loadFromFile() {
+  try {
+    if (fs.existsSync(JOBS_FILE)) {
+      DATA = JSON.parse(fs.readFileSync(JOBS_FILE, 'utf8'));
+      console.log('Start: wczytano ' + DATA.jobs.length + ' ofert z jobs.json (sync: ' + DATA.lastSync + ')');
+      return true;
     }
+  } catch (e) {
+    console.error('Start: blad odczytu jobs.json:', e.message);
   }
-  res.json(report);
+  return false;
+}
+
+/* harmonogram: sprawdzaj co minute, czy wybila godzina synchronizacji */
+let lastSyncDay = '';
+setInterval(() => {
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  if (SYNC_HOURS.includes(now.getHours()) && lastSyncDay !== day) {
+    lastSyncDay = day;
+    syncAll();
+  }
+}, 60000);
+
+/* ---------- ENDPOINTY ---------- */
+app.get('/api/skills', (req, res) => res.json(DATA.cats));
+app.get('/api/jobs',   (req, res) => res.json(DATA.jobs));
+app.get('/api/status', (req, res) => res.json({
+  ofert: DATA.jobs.length,
+  ostatniaSynchronizacja: DATA.lastSync,
+  trwaSynchronizacja: syncing,
+}));
+
+/* ---------- START ---------- */
+app.listen(PORT, () => {
+  console.log('Serwer dziala: http://localhost:' + PORT);
+  if (!loadFromFile()) {
+    console.log('Start: brak jobs.json - uruchamiam pierwsza synchronizacje...');
+    syncAll();
+  }
 });
-
-app.get('/api/skills', async (req, res) => res.json((await refresh()).cats));
-app.get('/api/jobs',   async (req, res) => res.json((await refresh()).jobs));
-
-app.listen(PORT, () => console.log('Serwer dziala: http://localhost:' + PORT));
