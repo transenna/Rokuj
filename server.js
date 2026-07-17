@@ -396,8 +396,8 @@ async function fetchCareerjet() {
       const resp = await fetch(url, {
         headers: {
           'Authorization': auth,
-          'Referer': 'https://rokuj.onrender.com',
-          'User-Agent': 'Mozilla/5.0 (RokujPL; +https://rokuj.onrender.com)',
+          'Referer': 'https://rokuj.pl',
+          'User-Agent': 'Mozilla/5.0 (RokujPL; +https://rokuj.pl)',
         },
       });
       if (!resp.ok) { console.error('Careerjet str. ' + page + ': HTTP ' + resp.status); break; }
