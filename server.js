@@ -452,9 +452,9 @@ async function syncAll() {
   syncing = true;
   console.log('=== SYNC START ' + new Date().toISOString() + ' ===');
   try {
-    const adzuna = await fetchAdzuna();
     const careerjet = await fetchCareerjet();
-    const unique = dedupe(adzuna.concat(careerjet));
+    const adzuna = await fetchAdzuna();
+    const unique = dedupe(careerjet.concat(adzuna));
     console.log('Sync: ' + unique.length + ' unikalnych ofert');
 
     const items = unique.map(r => ({ text: r.text, cat: categoryFor(r.text) }));
