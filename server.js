@@ -567,6 +567,18 @@ app.get('/api/status', (req, res) => res.json({
   ostatniaSynchronizacja: DATA.lastSync,
   trwaSynchronizacja: syncing,
 }));
+/* reczne uruchomienie synchronizacji (tylko z haslem) */
+const SYNC_TOKEN = process.env.SYNC_TOKEN;
+app.get('/api/sync', (req, res) => {
+  if (!SYNC_TOKEN || req.query.haslo !== SYNC_TOKEN) {
+    return res.status(403).json({ blad: 'Brak dostępu' });
+  }
+  if (syncing) {
+    return res.json({ info: 'Synchronizacja już trwa', ofert: DATA.jobs.length });
+  }
+  syncAll();
+  res.json({ info: 'Synchronizacja uruchomiona w tle. Postęp sprawdzisz pod /api/status' });
+});
 
 /* ---------- START ---------- */
 app.listen(PORT, () => {
