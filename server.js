@@ -363,6 +363,14 @@ function daysAgo(dateStr) {
   if (isNaN(d.getTime())) return null;
   return Math.floor((Date.now() - d.getTime()) / 86400000);
 }
+/* wynagrodzenie: zwraca np. "5 000 - 7 000 zł" albo null */
+function formatSalary(min, max) {
+  const f = n => Math.round(n).toLocaleString('pl-PL');
+  if (min && max && min !== max) return f(min) + ' - ' + f(max) + ' zł';
+  if (min) return f(min) + ' zł';
+  if (max) return 'do ' + f(max) + ' zł';
+  return null;
+}
 
 function pause(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -393,6 +401,7 @@ async function fetchAdzuna() {
           url: r.redirect_url || '#',
           portal: 'Adzuna',
           age: age,
+          salary: formatSalary(r.salary_min, r.salary_max),
         });
       }
       /* sortujemy po dacie, wiec gdy zaczely sie stare - konczymy */
@@ -441,6 +450,7 @@ async function fetchCareerjet() {
           url: r.url || '#',
           portal: 'Careerjet',
           age: age,
+          salary: r.salary ? String(r.salary).replace(/<[^>]*>/g, '').trim() : null,
         });
       }
       if (tooOld) { console.log('Careerjet: str. ' + page + ' - osiagnieto granice 60 dni'); break; }
@@ -500,6 +510,7 @@ async function syncAll() {
         url: r.url,
         skills: skills,
         age: r.age,
+        salary: r.salary || null,
       });
     }
 
