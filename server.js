@@ -290,7 +290,7 @@ function mineSkills(items) {
     }
     const name = item.phrase.charAt(0).toUpperCase() + item.phrase.slice(1);
    result.push({ name, keywords: [item.phrase], regexes: [kwToRegex(item.phrase)], cat: bestCat });
-
+   
   }
   console.log('Auto-skille: ' + result.length + ' (prog: ' + minOffers + ' ofert)');
   return result;
