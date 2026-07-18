@@ -14,9 +14,9 @@ const JOOBLE_KEY = process.env.JOOBLE_API_KEY;
 const CAREERJET_KEY = process.env.CAREERJET_API_KEY;
 
 /* ---------- USTAWIENIA SYNCHRONIZACJI ---------- */
-const SYNC_HOURS = Array.of(3);   // godziny nocnego cyklu (mozna dopisac np. Array.of(3, 15))
-const MAX_PAGES = 100;         // max stron na zrodlo (100 x 50 = 5000 ofert)
-const MAX_AGE_DAYS = 30;       // odcinamy oferty starsze niz 30 dni
+const SYNC_HOURS = Array.of(5);   // godziny nocnego cyklu (mozna dopisac np. Array.of(3, 15))
+const MAX_PAGES = 300;         // max stron na zrodlo (300 x 50 = 15000 ofert)
+const MAX_AGE_DAYS = 60;       // odcinamy oferty starsze niz 60 dni
 const PAUSE_MS = 400;          // grzeczna pauza miedzy zapytaniami
 const JOBS_FILE = path.join(__dirname, 'jobs.json');
 
@@ -396,7 +396,7 @@ async function fetchAdzuna() {
         });
       }
       /* sortujemy po dacie, wiec gdy zaczely sie stare - konczymy */
-      if (tooOld) { console.log('Adzuna: str. ' + page + ' - osiagnieto granice 30 dni'); break; }
+      if (tooOld) { console.log('Adzuna: str. ' + page + ' - osiagnieto granice 60 dni'); break; }
       await pause(PAUSE_MS);
     } catch (e) {
       console.error('Adzuna str. ' + page + ':', e.message);
@@ -443,7 +443,7 @@ async function fetchCareerjet() {
           age: age,
         });
       }
-      if (tooOld) { console.log('Careerjet: str. ' + page + ' - osiagnieto granice 30 dni'); break; }
+      if (tooOld) { console.log('Careerjet: str. ' + page + ' - osiagnieto granice 60 dni'); break; }
       await pause(PAUSE_MS);
     } catch (e) {
       console.error('Careerjet str. ' + page + ':', e.message);
@@ -462,11 +462,13 @@ function dedupe(list) {
   const seen = new Set();
   const out = [];
   for (const r of list) {
-    const keyUrl = r.url;
-    const keyText = (r.title + '|' + r.company).toLowerCase().replace(/\s+/g, ' ').trim();
-    if (seen.has(keyUrl) || seen.has(keyText)) continue;
-    seen.add(keyUrl);
-    seen.add(keyText);
+    if (seen.has(r.url)) continue;
+    /* duplikat po tresci tylko gdy znamy firme; uwzgledniamy miasto */
+    const keyText = (r.title + '|' + r.company + '|' + r.location)
+      .toLowerCase().replace(/\s+/g, ' ').trim();
+    if (r.company && seen.has(keyText)) continue;
+    seen.add(r.url);
+    if (r.company) seen.add(keyText);
     out.push(r);
   }
   return out;
