@@ -281,6 +281,13 @@ document.getElementById('btnReset').addEventListener('click', function(){
   renderJobs();
 });
 
+  function ageText(age){
+  if(age == null) return '';
+  if(age === 0) return 'dzisiaj';
+  if(age === 1) return 'wczoraj';
+  return age + ' dni temu';
+}
+
 function renderJobs(){
   const q        = document.getElementById('fSearch').value.toLowerCase().trim();
   const loc      = document.getElementById('fLocation').value.toLowerCase().trim();
@@ -335,6 +342,9 @@ function renderJobs(){
     if(r.j.company){ meta += '<span>' + esc(r.j.company) + '</span><span class="dot"></span>'; }
     meta += '<span>' + esc(r.j.location || 'lokalizacja nieznana') + '</span>';
     if(r.j.remote){ meta += '<span class="dot"></span><span>zdalnie</span>'; }
+    if(r.j.age != null){
+      meta += '<span class="dot"></span><span>' + ageText(r.j.age) + '</span>';
+    }
     meta += '<span class="dot"></span><span class="badge">' + esc(r.j.portal) + '</span>';
 
     html += '<div class="job ' + cls + '">' +
