@@ -99,6 +99,7 @@ input[type=range]{accent-color:var(--accent);padding:0;border:none;}
 .job .meta{color:var(--ink-soft);font-size:.86rem;margin-bottom:10px;
   display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
 .meta .dot{width:3px;height:3px;border-radius:50%;background:#C9CDD4;}
+  .meta .salary{color:var(--ok);font-weight:600;}
 .job a.more{color:var(--accent);font-weight:600;text-decoration:none;
   display:inline-flex;align-items:center;gap:5px;margin-top:12px;font-size:.9rem;}
 .job a.more:hover{text-decoration:underline;}
@@ -342,6 +343,7 @@ function renderJobs(){
     if(r.j.company){ meta += '<span>' + esc(r.j.company) + '</span><span class="dot"></span>'; }
     meta += '<span>' + esc(r.j.location || 'lokalizacja nieznana') + '</span>';
     if(r.j.remote){ meta += '<span class="dot"></span><span>zdalnie</span>'; }
+        if(r.j.salary){ meta += '<span class="dot"></span><span class="salary">' + esc(r.j.salary) + '</span>'; }
     if(r.j.age != null){
       meta += '<span class="dot"></span><span>' + ageText(r.j.age) + '</span>';
     }
