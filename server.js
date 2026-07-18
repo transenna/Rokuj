@@ -289,40 +289,65 @@ function mineSkills(items) {
       if (n > bestN) { bestN = n; bestCat = catName; }
     }
     const name = item.phrase.charAt(0).toUpperCase() + item.phrase.slice(1);
-    result.push({ name, keywords: [item.phrase], cat: bestCat });
+   result.push({ name, keywords: [item.phrase], regexes: [kwToRegex(item.phrase)], cat: bestCat });
+
   }
   console.log('Auto-skille: ' + result.length + ' (prog: ' + minOffers + ' ofert)');
   return result;
 }
 
+/* ---------- DOPASOWANIE Z GRANICAMI SLOW ---------- */
+const PL_CHARS = 'a-ząćęłńóśźż0-9';
+
+function kwToRegex(kw) {
+  const k = kw.trim().toLowerCase();
+  const esc = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  /* lewa granica zawsze; prawa tylko dla krotkich fraz (sep, adr, qa, ce, hr, seo, vat...) */
+  const right = k.length <= 4 ? `(?![${PL_CHARS}])` : '';
+  return new RegExp(`(?<![${PL_CHARS}#+])${esc}${right}`, 'i');
+}
+
+/* prekompilacja slownika (raz, przy starcie) */
+const SKILL_REGEX = {};
+for (const [catName, skills] of Object.entries(SKILL_DEFS)) {
+  SKILL_REGEX[catName] = {};
+  for (const [skillName, kws] of Object.entries(skills)) {
+    SKILL_REGEX[catName][skillName] = kws.map(kwToRegex);
+  }
+}
+
 function detectSkills(text, autoSkills) {
   const t = text.toLowerCase();
   const found = [];
-  for (const skills of Object.values(SKILL_DEFS)) {
-    for (const skillName of Object.keys(skills)) {
-      if (skills[skillName].some(k => t.includes(k))) found.push(skillName);
+  for (const skills of Object.values(SKILL_REGEX)) {
+    for (const [skillName, regexes] of Object.entries(skills)) {
+      if (regexes.some(re => re.test(t))) found.push(skillName);
     }
   }
   for (const a of autoSkills) {
-    if (a.keywords.some(k => t.includes(k))) found.push(a.name);
+    if (a.regexes
+      ? a.regexes.some(re => re.test(t))
+      : a.keywords.some(k => t.includes(k))) found.push(a.name);
   }
   return found;
 }
+
 
 /* przypisanie kategorii po tresci oferty */
 function categoryFor(text) {
   const t = text.toLowerCase();
   let bestCat = 'Biuro i administracja';
   let bestN = 0;
-  for (const catName of Object.keys(SKILL_DEFS)) {
+  for (const catName of Object.keys(SKILL_REGEX)) {
     let n = 0;
-    for (const kws of Object.values(SKILL_DEFS[catName])) {
-      if (kws.some(k => t.includes(k))) n += 1;
+    for (const regexes of Object.values(SKILL_REGEX[catName])) {
+      if (regexes.some(re => re.test(t))) n += 1;
     }
     if (n > bestN) { bestN = n; bestCat = catName; }
   }
   return bestCat;
 }
+
 
 function baseCats() {
   const cats = {};
