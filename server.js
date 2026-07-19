@@ -500,6 +500,8 @@ function dedupe(list) {
   return out;
 }
 
+const RESCUE_RATIO = 0.6; /* ratujemy stare oferty zrodla, gdy da mniej niz 60% wczorajszego stanu */
+
 async function syncAll() {
   if (syncing) { console.log('Sync: juz trwa, pomijam'); return; }
   syncing = true;
@@ -510,7 +512,25 @@ async function syncAll() {
     const fresh = dedupe(careerjet.concat(adzuna));
     console.log('Sync: pobrano ' + fresh.length + ' unikalnych ofert');
 
-    /* klucze nowych ofert - do wykrywania duplikatow ze stara baza */
+    /* ile ofert per zrodlo: teraz vs poprzednio */
+    const freshPer = {};
+    for (const r of fresh) freshPer[r.portal] = (freshPer[r.portal] || 0) + 1;
+    const oldPer = {};
+    for (const j of (DATA.jobs || [])) oldPer[j.portal] = (oldPer[j.portal] || 0) + 1;
+
+    /* zrodla z czkawka */
+    const rescue = new Set();
+    for (const portal of Object.keys(oldPer)) {
+      const oldN = oldPer[portal];
+      const newN = freshPer[portal] || 0;
+      if (oldN >= 200 && newN < oldN * RESCUE_RATIO) {
+        rescue.add(portal);
+        console.log('Sync: UWAGA - ' + portal + ' dal tylko ' + newN +
+          ' ofert (bylo ' + oldN + '). Ratuje wczorajsze oferty tego zrodla.');
+      }
+    }
+
+    /* klucze nowych ofert - zeby uratowane sie nie dublowaly */
     const seen = new Set();
     for (const r of fresh) {
       seen.add(r.url);
@@ -520,12 +540,12 @@ async function syncAll() {
       }
     }
 
-    /* stare oferty: zostaw te, ktore nie sa duplikatami i maja mniej niz 60 dni */
     const now = Date.now();
     const kept = [];
     for (const j of (DATA.jobs || [])) {
+      if (!rescue.has(j.portal)) continue;
       const posted = j.posted ? new Date(j.posted).getTime() : null;
-      const age = posted !== null && !isNaN(posted)
+      const age = (posted !== null && !isNaN(posted))
         ? Math.floor((now - posted) / 86400000)
         : (j.age != null ? j.age + 1 : null);
       if (age !== null && age > MAX_AGE_DAYS) continue;
@@ -537,9 +557,10 @@ async function syncAll() {
       if (j.company) seen.add(keyText);
       const copy = Object.assign({}, j);
       copy.age = age;
+      if (!copy.posted) copy.posted = new Date(now - (age || 0) * 86400000).toISOString();
       kept.push(copy);
     }
-    console.log('Sync: zachowano ' + kept.length + ' ofert z poprzedniej bazy');
+    if (kept.length) console.log('Sync: uratowano ' + kept.length + ' ofert z poprzedniej bazy');
 
     const items = fresh.map(r => ({ text: r.text, cat: categoryFor(r.text) }));
     const autoSkills = mineSkills(items);
@@ -570,7 +591,7 @@ async function syncAll() {
     const perPortal = {};
     for (const j of jobs) perPortal[j.portal] = (perPortal[j.portal] || 0) + 1;
     console.log('=== SYNC OK: ' + jobs.length + ' ofert (nowych: ' + fresh.length +
-      ', zachowanych: ' + kept.length + '), zrodla: ' + JSON.stringify(perPortal) + ' ===');
+      ', uratowanych: ' + kept.length + '), zrodla: ' + JSON.stringify(perPortal) + ' ===');
 
     DATA = { jobs, cats, lastSync: new Date().toISOString() };
     fs.writeFileSync(JOBS_FILE, JSON.stringify(DATA));
