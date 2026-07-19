@@ -507,16 +507,45 @@ async function syncAll() {
   try {
     const careerjet = await fetchCareerjet();
     const adzuna = await fetchAdzuna();
-    const unique = dedupe(careerjet.concat(adzuna));
-    console.log('Sync: ' + unique.length + ' unikalnych ofert');
+    const fresh = dedupe(careerjet.concat(adzuna));
+    console.log('Sync: pobrano ' + fresh.length + ' unikalnych ofert');
 
-    const items = unique.map(r => ({ text: r.text, cat: categoryFor(r.text) }));
+    /* klucze nowych ofert - do wykrywania duplikatow ze stara baza */
+    const seen = new Set();
+    for (const r of fresh) {
+      seen.add(r.url);
+      if (r.company) {
+        seen.add((r.title + '|' + r.company + '|' + r.location)
+          .toLowerCase().replace(/\s+/g, ' ').trim());
+      }
+    }
+
+    /* stare oferty: zostaw te, ktore nie sa duplikatami i maja mniej niz 60 dni */
+    const now = Date.now();
+    const kept = [];
+    for (const j of (DATA.jobs || [])) {
+      const posted = j.posted ? new Date(j.posted).getTime() : null;
+      const age = posted !== null && !isNaN(posted)
+        ? Math.floor((now - posted) / 86400000)
+        : (j.age != null ? j.age + 1 : null);
+      if (age !== null && age > MAX_AGE_DAYS) continue;
+      if (seen.has(j.url)) continue;
+      const keyText = (j.title + '|' + j.company + '|' + j.location)
+        .toLowerCase().replace(/\s+/g, ' ').trim();
+      if (j.company && seen.has(keyText)) continue;
+      seen.add(j.url);
+      if (j.company) seen.add(keyText);
+      const copy = Object.assign({}, j);
+      copy.age = age;
+      kept.push(copy);
+    }
+    console.log('Sync: zachowano ' + kept.length + ' ofert z poprzedniej bazy');
+
+    const items = fresh.map(r => ({ text: r.text, cat: categoryFor(r.text) }));
     const autoSkills = mineSkills(items);
 
     const jobs = [];
-    for (let i = 0; i < unique.length; i++) {
-      const r = unique.at(i);
-      const skills = detectSkills(r.text, autoSkills);
+    for (const r of fresh) {
       jobs.push({
         title: r.title,
         company: r.company,
@@ -524,11 +553,13 @@ async function syncAll() {
         remote: /zdaln|remote|home office/i.test(r.text),
         portal: r.portal,
         url: r.url,
-        skills: skills,
+        skills: detectSkills(r.text, autoSkills),
         age: r.age,
+        posted: new Date(now - (r.age || 0) * 86400000).toISOString(),
         salary: r.salary || null,
       });
     }
+    for (const j of kept) jobs.push(j);
 
     const cats = baseCats();
     for (const a of autoSkills) {
@@ -538,8 +569,8 @@ async function syncAll() {
 
     const perPortal = {};
     for (const j of jobs) perPortal[j.portal] = (perPortal[j.portal] || 0) + 1;
-    console.log('=== SYNC OK: ' + jobs.length + ' ofert z kompetencjami, zrodla: ' +
-      JSON.stringify(perPortal) + ' ===');
+    console.log('=== SYNC OK: ' + jobs.length + ' ofert (nowych: ' + fresh.length +
+      ', zachowanych: ' + kept.length + '), zrodla: ' + JSON.stringify(perPortal) + ' ===');
 
     DATA = { jobs, cats, lastSync: new Date().toISOString() };
     fs.writeFileSync(JOBS_FILE, JSON.stringify(DATA));
