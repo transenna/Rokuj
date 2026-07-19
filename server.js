@@ -375,13 +375,12 @@ function formatSalary(min, max) {
 function normalizeCareerjetSalary(s) {
   if (!s) return null;
   const t = String(s).replace(/<[^>]*>/g, ' ');
-  /* usun przecinki-separatory tysiecy (5,000 -> 5000) i wyciagnij liczby */
   const nums = t.replace(/,(?=\d{3})/g, '').match(/\d+(?:\.\d+)?/g);
   if (!nums || !nums.length) return null;
   const f = n => Math.round(parseFloat(n)).toLocaleString('pl-PL');
-  let kwota = (nums.length >= 2 && nums<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a> !== nums<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>)
-    ? f(nums<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>) + ' - ' + f(nums<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[1]</a>)
-    : f(nums<a href="" class="citation-link" target="_blank" style="vertical-align: super; font-size: 0.8em; margin-left: 3px;">[0]</a>);
+  let kwota = (nums.length >= 2 && nums.at(0) !== nums.at(1))
+    ? f(nums.at(0)) + ' - ' + f(nums.at(1))
+    : f(nums.at(0));
   let okres = '';
   if (/hour|godz/i.test(t)) okres = '/godz.';
   else if (/week|tydz/i.test(t)) okres = '/tydz.';
