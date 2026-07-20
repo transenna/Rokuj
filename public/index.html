@@ -85,11 +85,11 @@ input,select{border:1px solid var(--line);border-radius:10px;background:var(--ca
   padding:9px 12px;font-size:.9rem;color:var(--ink);font-family:inherit;}
 input::placeholder{color:#9CA3AF;}
 input:focus,select:focus{outline:2px solid var(--accent-soft);border-color:var(--accent);}
-#fRemote{border:1px solid var(--line);background:var(--card);border-radius:10px;
+#fRemote,#fSalaryOnly{border:1px solid var(--line);background:var(--card);border-radius:10px;
   padding:9px 14px;cursor:pointer;font-size:.9rem;color:var(--ink-soft);
   display:inline-flex;align-items:center;gap:7px;font-family:inherit;}
-#fRemote:hover{border-color:var(--accent);color:var(--accent);}
-#fRemote.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+#fRemote:hover,#fSalaryOnly:hover{border-color:var(--accent);color:var(--accent);}
+#fRemote.on,#fSalaryOnly.on{background:var(--accent);color:#fff;border-color:var(--accent);}
 .range-wrap{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-soft);}
 input[type=range]{accent-color:var(--accent);padding:0;border:none;}
 #stats{color:var(--ink-soft);font-size:.86rem;margin:0 4px 12px;}
@@ -154,10 +154,15 @@ footer{text-align:center;color:#9CA3AF;font-size:.8rem;padding:26px;}
       <select id="fSort">
         <option value="score">Sortuj: rokowanie</option>
         <option value="title">Sortuj: nazwa</option>
+                 <option value="salary">Sortuj: zarobki</option>
       </select>
       <button id="fRemote">
         <svg class="ic" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7M5 9.5V20h14V9.5"/></svg>
         zdalnie
+               <button id="fSalaryOnly">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 2v20M17 6H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg>
+        z zarobkami
+      </button>
       </button>
       <span class="range-wrap">
         min. rokowanie
@@ -179,6 +184,20 @@ let CATEGORIES = {};
 let userSkills = {};
 let openCats = {};
 let remoteOnly = false;
+let salaryOnly = false;
+
+/* zamienia napis "5 000 - 7 000 zł/godz." na liczbe do sortowania (w przyblizeniu miesiecznie) */
+function salaryNum(s){
+  if(!s) return 0;
+  const t = String(s).replace(/[\s\u00A0\u202F]/g, '');
+  const m = t.match(/\d+/g);
+  if(!m) return 0;
+  let n = Math.max.apply(null, m.map(Number));
+  if(/godz|hour/i.test(s)) n *= 160;
+  else if(/tydz|week/i.test(s)) n *= 4;
+  else if(/rok|year|annum/i.test(s)) n = Math.round(n / 12);
+  return n;
+}
 
 const ICON_HAVE  = '<svg class="ic" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>';
 const ICON_LEARN = '<svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
@@ -313,6 +332,7 @@ function renderJobs(){
     if(q && hay.indexOf(q) === -1) continue;
     if(loc && (j.location || '').toLowerCase().indexOf(loc) === -1) continue;
     if(remoteOnly && !j.remote) continue;
+    if(salaryOnly && !j.salary) continue;
     if(portal && j.portal !== portal) continue;
     if(score < minScore) continue;
 
@@ -321,6 +341,7 @@ function renderJobs(){
 
   results.sort(function(a, b){
     if(sortBy === 'title') return a.j.title.localeCompare(b.j.title, 'pl');
+         if(sortBy === 'salary') return salaryNum(b.j.salary) - salaryNum(a.j.salary);
     return b.score - a.score;
   });
 
@@ -378,6 +399,11 @@ document.getElementById('fScore').addEventListener('input', function(){
 document.getElementById('fRemote').addEventListener('click', function(){
   remoteOnly = !remoteOnly;
   document.getElementById('fRemote').classList.toggle('on', remoteOnly);
+  renderJobs();
+});
+document.getElementById('fSalaryOnly').addEventListener('click', function(){
+  salaryOnly = !salaryOnly;
+  document.getElementById('fSalaryOnly').classList.toggle('on', salaryOnly);
   renderJobs();
 });
 
