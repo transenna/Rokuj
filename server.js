@@ -361,7 +361,7 @@ function daysAgo(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return null;
-  return Math.floor((Date.now() - d.getTime()) / 86400000);
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
 }
 /* wynagrodzenie: zwraca np. "5 000 - 7 000 zł" albo null */
 function formatSalary(min, max) {
@@ -371,6 +371,16 @@ function formatSalary(min, max) {
   if (max) return 'do ' + f(max) + ' zł';
   return null;
 }
+/* Adzuna czasem podaje kwoty roczne lub smieciowe - odsiewamy niewiarygodne */
+function formatAdzunaSalary(min, max) {
+  const lo = min || max;
+  const hi = max || min;
+  if (!lo) return null;
+  if (hi / lo > 20) return null;   /* absurdalne widelki, np. 2256 - 2244000 */
+  if (hi > 60000) return null;     /* powyzej 60 tys./mies. = dane roczne/niewiarygodne */
+  return formatSalary(min, max);
+}
+
 /* zarobki z Careerjet: np. "zl33 per hour" -> "33 zł/godz." */
 function normalizeCareerjetSalary(s) {
   if (!s) return null;
@@ -417,7 +427,7 @@ async function fetchAdzuna() {
           url: r.redirect_url || '#',
           portal: 'Adzuna',
           age: age,
-          salary: formatSalary(r.salary_min, r.salary_max),
+          salary: formatAdzunaSalary(r.salary_min, r.salary_max),
         });
       }
       /* sortujemy po dacie, wiec gdy zaczely sie stare - konczymy */
