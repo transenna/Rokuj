@@ -401,6 +401,55 @@ function normalizeCareerjetSalary(s) {
 function pause(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+/* ---------- ZRODLO 3: CBOP - urzedy pracy (pelne tresci) ---------- */
+function daysAgoPL(dateStr) {
+  /* format "20.07.2026" */
+  if (!dateStr) return null;
+  const m = String(dateStr).match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return null;
+  const d = new Date(Number(m.at(3)), Number(m.at(2)) - 1, Number(m.at(1)));
+  if (isNaN(d.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
+}
+
+async function fetchCBOP() {
+  const out = [];
+  for (let page = 0; page <= 500; page++) {
+    try {
+      const resp = await fetch('https://oferty.praca.gov.pl/portal-api/v3/oferta/wyszukiwanie?page=' + page + '&size=50', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: '{}',
+      });
+      if (!resp.ok) { console.error('CBOP str. ' + page + ': HTTP ' + resp.status); break; }
+      const data = await resp.json();
+      const results = (data.payload && data.payload.ofertyPracyPage && data.payload.ofertyPracyPage.content) || [];
+      if (!results.length) break;
+      for (const r of results) {
+        if (r.typOfertyEnum && r.typOfertyEnum !== 'OFERTA_PRACY') continue;
+        const age = daysAgoPL(r.dataDodaniaCbop);
+        if (age !== null && age > MAX_AGE_DAYS) continue;
+        out.push({
+          title: r.stanowisko || 'Oferta pracy',
+          company: r.pracodawca || '',
+          location: r.miejscePracy || '',
+          text: (r.stanowisko || '') + '\n' + (r.zakresObowiazkow || '') + '\n' + (r.wymagania || ''),
+          url: 'https://oferty.praca.gov.pl/portal/oferta/' + r.id,
+          portal: 'Urzędy pracy',
+          age: age,
+          salary: r.wynagrodzenie ? String(r.wynagrodzenie).replace(/\s*PLN/g, ' zł').trim() : null,
+        });
+      }
+      await pause(PAUSE_MS);
+    } catch (e) {
+      console.error('CBOP str. ' + page + ':', e.message);
+      break;
+    }
+  }
+  console.log('CBOP: pobrano ' + out.length + ' ofert');
+  return out;
+}
+
 /* ---------- ZRODLO 1: Adzuna (pelna paginacja) ---------- */
 async function fetchAdzuna() {
   if (!ADZUNA_ID || !ADZUNA_KEY) { console.log('Adzuna: brak kluczy'); return []; }
@@ -517,9 +566,10 @@ async function syncAll() {
   syncing = true;
   console.log('=== SYNC START ' + new Date().toISOString() + ' ===');
   try {
+    const cbop = await fetchCBOP();
     const careerjet = await fetchCareerjet();
     const adzuna = await fetchAdzuna();
-    const fresh = dedupe(careerjet.concat(adzuna));
+    const fresh = dedupe(cbop.concat(careerjet).concat(adzuna));
     console.log('Sync: pobrano ' + fresh.length + ' unikalnych ofert');
 
     /* ile ofert per zrodlo: teraz vs poprzednio */
