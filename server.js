@@ -17,7 +17,13 @@ const CAREERJET_KEY = process.env.CAREERJET_API_KEY;
 const SYNC_HOURS = Array.of(5);   // godziny nocnego cyklu (mozna dopisac np. Array.of(3, 15))
 const MAX_PAGES = 300;         // max stron na zrodlo (300 x 50 = 15000 ofert)
 const MAX_AGE_DAYS = 60;       // odcinamy oferty starsze niz 60 dni
-const CBOP_ENABLED = false;  /* wlaczymy po uzyskaniu statusu Partnera CBOP */
+/* przelaczniki zrodel: zmien false->true, by wlaczyc z powrotem */
+const SOURCES_ENABLED = {
+  'Urzędy pracy': false,
+  'Adzuna': false,
+  'Careerjet': false,
+};
+
 const PAUSE_MS = 400;          // grzeczna pauza miedzy zapytaniami
 const JOBS_FILE = path.join(__dirname, 'jobs.json');
 
@@ -567,9 +573,9 @@ async function syncAll() {
   syncing = true;
   console.log('=== SYNC START ' + new Date().toISOString() + ' ===');
   try {
-    const cbop = CBOP_ENABLED ? await fetchCBOP() : [];
-    const careerjet = await fetchCareerjet();
-    const adzuna = await fetchAdzuna();
+    const cbop = SOURCES_ENABLED['Urzędy pracy'] ? await fetchCBOP() : [];
+    const careerjet = SOURCES_ENABLED['Careerjet'] ? await fetchCareerjet() : [];
+    const adzuna = SOURCES_ENABLED['Adzuna'] ? await fetchAdzuna() : [];
     const fresh = dedupe(cbop.concat(careerjet).concat(adzuna));
     console.log('Sync: pobrano ' + fresh.length + ' unikalnych ofert');
 
@@ -582,6 +588,7 @@ async function syncAll() {
     /* zrodla z czkawka */
     const rescue = new Set();
     for (const portal of Object.keys(oldPer)) {
+            if (!SOURCES_ENABLED[portal]) continue;  /* zrodlo wylaczone celowo - nie ratuj */
       const oldN = oldPer[portal];
       const newN = freshPer[portal] || 0;
       if (oldN >= 200 && newN < oldN * RESCUE_RATIO) {
