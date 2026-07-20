@@ -154,15 +154,11 @@ footer{text-align:center;color:#9CA3AF;font-size:.8rem;padding:26px;}
       <select id="fSort">
         <option value="score">Sortuj: rokowanie</option>
         <option value="title">Sortuj: nazwa</option>
-                 <option value="salary">Sortuj: zarobki</option>
       </select>
       <button id="fRemote">
         <svg class="ic" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7M5 9.5V20h14V9.5"/></svg>
         zdalnie
-               <button id="fSalaryOnly">
-        <svg class="ic" viewBox="0 0 24 24"><path d="M12 2v20M17 6H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg>
-        z zarobkami
-      </button>
+
       </button>
       <span class="range-wrap">
         min. rokowanie
@@ -365,7 +361,6 @@ function renderJobs(){
     if(r.j.company){ meta += '<span>' + esc(r.j.company) + '</span><span class="dot"></span>'; }
     meta += '<span>' + esc(r.j.location || 'lokalizacja nieznana') + '</span>';
     if(r.j.remote){ meta += '<span class="dot"></span><span>zdalnie</span>'; }
-        if(r.j.salary){ meta += '<span class="dot"></span><span class="salary">' + esc(r.j.salary) + '</span>'; }
     if(r.j.age != null){
       meta += '<span class="dot"></span><span>' + ageText(r.j.age) + '</span>';
     }
@@ -399,11 +394,6 @@ document.getElementById('fScore').addEventListener('input', function(){
 document.getElementById('fRemote').addEventListener('click', function(){
   remoteOnly = !remoteOnly;
   document.getElementById('fRemote').classList.toggle('on', remoteOnly);
-  renderJobs();
-});
-document.getElementById('fSalaryOnly').addEventListener('click', function(){
-  salaryOnly = !salaryOnly;
-  document.getElementById('fSalaryOnly').classList.toggle('on', salaryOnly);
   renderJobs();
 });
 
