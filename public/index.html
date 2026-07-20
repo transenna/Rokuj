@@ -193,8 +193,8 @@ function salaryNum(s){
   const m = t.match(/\d+/g);
   if(!m) return 0;
   let n = Math.max.apply(null, m.map(Number));
-  if(/godz|hour/i.test(s)) n *= 160;
-  else if(/tydz|week/i.test(s)) n *= 4;
+   if(/godz|hour/i.test(s)) n *= 168;
+  else if(/tydz|week/i.test(s)) n *= 4.33;
   else if(/rok|year|annum/i.test(s)) n = Math.round(n / 12);
   return n;
 }
