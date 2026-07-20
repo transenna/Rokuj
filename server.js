@@ -17,6 +17,7 @@ const CAREERJET_KEY = process.env.CAREERJET_API_KEY;
 const SYNC_HOURS = Array.of(5);   // godziny nocnego cyklu (mozna dopisac np. Array.of(3, 15))
 const MAX_PAGES = 300;         // max stron na zrodlo (300 x 50 = 15000 ofert)
 const MAX_AGE_DAYS = 60;       // odcinamy oferty starsze niz 60 dni
+const CBOP_ENABLED = false;  /* wlaczymy po uzyskaniu statusu Partnera CBOP */
 const PAUSE_MS = 400;          // grzeczna pauza miedzy zapytaniami
 const JOBS_FILE = path.join(__dirname, 'jobs.json');
 
@@ -566,7 +567,7 @@ async function syncAll() {
   syncing = true;
   console.log('=== SYNC START ' + new Date().toISOString() + ' ===');
   try {
-    const cbop = await fetchCBOP();
+    const cbop = CBOP_ENABLED ? await fetchCBOP() : [];
     const careerjet = await fetchCareerjet();
     const adzuna = await fetchAdzuna();
     const fresh = dedupe(cbop.concat(careerjet).concat(adzuna));
