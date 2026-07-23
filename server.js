@@ -646,8 +646,8 @@ async function syncAll() {
         remote: /zdaln|remote|home office/i.test(r.text),
         portal: r.portal,
         url: r.url,
-        skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => groupName(s.k)))) : detectSkills(r.text, []),
-        skillsOrig: r.ai ? r.ai.skills.map(s => ({ o: s.o, k: groupName(s.k) })) : [],
+        skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => groupName(s.k)).filter(g => g !== '__ODRZUC__'))) : detectSkills(r.text, []),
+        skillsOrig: r.ai ? r.ai.skills.map(s => ({ o: s.o, k: groupName(s.k) })).filter(t => t.k !== '__ODRZUC__') : [],
         edu: r.ai ? r.ai.edu : null,
         age: r.age,
         posted: new Date(now - (r.age || 0) * 86400000).toISOString(),
@@ -664,6 +664,7 @@ async function syncAll() {
       const seenIn = new Set();
       for (const s of r.ai.skills) {
         const g = groupName(s.k);
+        if (g === '__ODRZUC__') continue;
         if (seenIn.has(g)) continue;
         seenIn.add(g);
         skillFreq[g] = (skillFreq[g] || 0) + 1;
@@ -675,11 +676,13 @@ async function syncAll() {
       if (!r.ai) continue;
       for (const s of r.ai.skills) {
         const g = groupName(s.k);
+        if (g === '__ODRZUC__') continue;
         if ((skillFreq[g] || 0) < MIN_SKILL_OFFERS) continue;
         if (!cats[s.cat]) cats[s.cat] = [];
         if (!cats[s.cat].includes(g)) cats[s.cat].push(g);
       }
     }
+
 
 
     const perPortal = {};
