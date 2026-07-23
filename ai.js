@@ -184,4 +184,72 @@ if (require.main === module) {
   })();
 }
 
-module.exports = { analyzeAll };
+/* ---------- GRUPOWANIE KOMPETENCJI (drugi przebieg AI) ---------- */
+const GROUPS_FILE = path.join(__dirname, 'ai-groups.json');
+
+const GROUP_PROMPT = 'Dostaniesz liste nazw kompetencji z ogloszen o prace (po polsku). ' +
+  'Zgrupuj te, ktore oznaczaja TE SAMA kompetencje (np. "wspolpraca z zespolem", ' +
+  '"praca w zespole", "doswiadczenie w pracy zespolowej" to jedna grupa). ' +
+  'Zwroc JSON: {"grupy":[{"nazwa":"krotka nazwa kanoniczna w mianowniku","frazy":["...","..."]}]}\n' +
+  'Zasady: kazda fraza moze byc tylko w jednej grupie; frazy o roznym znaczeniu ' +
+  '(np. "jezyk angielski" i "jezyk niemiecki") to OSOBNE grupy; nazwa grupy ma byc ' +
+  'naturalna i zwiezla, np. "Praca w zespole", "Prawo jazdy kat. B".';
+
+let groups = {};   /* fraza (norm) -> nazwa grupy */
+function loadGroups() {
+  try { if (fs.existsSync(GROUPS_FILE)) groups = JSON.parse(fs.readFileSync(GROUPS_FILE, 'utf8')); }
+  catch (e) { groups = {}; }
+}
+function saveGroups() {
+  try { fs.writeFileSync(GROUPS_FILE, JSON.stringify(groups)); }
+  catch (e) { console.error('AI groups: blad zapisu:', e.message); }
+}
+
+async function groupSkills(allNames) {
+  if (!KEY) return;
+  loadGroups();
+  /* tylko nazwy, ktorych jeszcze nie znamy */
+  const unknown = [];
+  for (const n of allNames) {
+    if (!groups[norm(n)]) unknown.push(n);
+  }
+  if (!unknown.length) { console.log('AI grupowanie: brak nowych nazw'); return; }
+  console.log('AI grupowanie: ' + unknown.length + ' nowych nazw do zgrupowania');
+  /* paczki po 300 nazw, zeby zmiescic sie w limicie odpowiedzi */
+  for (let i = 0; i < unknown.length; i += 300) {
+    const batch = unknown.slice(i, i + 300);
+    try {
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + KEY },
+        body: JSON.stringify({
+          model: MODEL,
+          temperature: 0,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: GROUP_PROMPT },
+            { role: 'user', content: JSON.stringify(batch) },
+          ],
+        }),
+      });
+      if (!resp.ok) throw new Error('OpenAI HTTP ' + resp.status);
+      const data = await resp.json();
+      const parsed = JSON.parse(data.choices.at(0).message.content);
+      for (const g of (parsed.grupy || [])) {
+        if (!g || !g.nazwa || !Array.isArray(g.frazy)) continue;
+        for (const f of g.frazy) groups[norm(f)] = g.nazwa;
+      }
+    } catch (e) {
+      console.error('AI grupowanie blad: ' + e.message);
+    }
+  }
+  saveGroups();
+  console.log('AI grupowanie: slownik ma ' + Object.keys(groups).length + ' fraz');
+}
+
+function groupName(name) {
+  return groups[norm(name)] || name;
+}
+
+module.exports = { analyzeAll, groupSkills, groupName, loadGroups };
+
