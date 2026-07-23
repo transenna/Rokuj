@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const app = express();.
+const app = express();
 const { analyzeAll } = require('./ai');
 const PORT = process.env.PORT || 3000;
 
