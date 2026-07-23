@@ -21,7 +21,7 @@ const MAX_AGE_DAYS = 60;       // odcinamy oferty starsze niz 60 dni
 /* przelaczniki zrodel: zmien false->true, by wlaczyc z powrotem */
 const SOURCES_ENABLED = {
   'Urzędy pracy': false,
-  'Adzuna': false,
+  'Adzuna': true,
   'Careerjet': false,
 };
 
