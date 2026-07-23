@@ -647,7 +647,7 @@ async function syncAll() {
         portal: r.portal,
         url: r.url,
         skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => groupName(s.k)))) : detectSkills(r.text, []),
-        skillsOrig: r.ai ? r.ai.skills : [],
+        skillsOrig: r.ai ? r.ai.skills.map(s => ({ o: s.o, k: groupName(s.k) })) : [],
         edu: r.ai ? r.ai.edu : null,
         age: r.age,
         posted: new Date(now - (r.age || 0) * 86400000).toISOString(),
