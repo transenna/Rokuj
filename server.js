@@ -3,7 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const app = express();
+const app = express();.
+const { analyzeAll } = require('./ai');
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -630,8 +631,7 @@ async function syncAll() {
     }
     if (kept.length) console.log('Sync: uratowano ' + kept.length + ' ofert z poprzedniej bazy');
 
-    const items = fresh.map(r => ({ text: r.text, cat: categoryFor(r.text) }));
-    const autoSkills = mineSkills(items);
+    await analyzeAll(fresh);   /* AI czyta nowe oferty (stare bierze z cache) */
 
     const jobs = [];
     for (const r of fresh) {
@@ -642,18 +642,23 @@ async function syncAll() {
         remote: /zdaln|remote|home office/i.test(r.text),
         portal: r.portal,
         url: r.url,
-        skills: detectSkills(r.text, autoSkills),
+        skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => s.k))) : detectSkills(r.text, []),
+        skillsOrig: r.ai ? r.ai.skills : [],
+        edu: r.ai ? r.ai.edu : null,
         age: r.age,
         posted: new Date(now - (r.age || 0) * 86400000).toISOString(),
-        salary: r.salary || null,
+        salary: r.salary || (r.ai && r.ai.salary) || null,
       });
     }
     for (const j of kept) jobs.push(j);
 
     const cats = baseCats();
-    for (const a of autoSkills) {
-      if (!cats[a.cat]) cats[a.cat] = [];
-      if (!cats[a.cat].includes(a.name)) cats[a.cat].push(a.name);
+    for (const r of fresh) {
+      if (!r.ai) continue;
+      for (const s of r.ai.skills) {
+        if (!cats[s.cat]) cats[s.cat] = [];
+        if (!cats[s.cat].includes(s.k)) cats[s.cat].push(s.k);
+      }
     }
 
     const perPortal = {};
