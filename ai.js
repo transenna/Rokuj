@@ -69,10 +69,14 @@ function norm(s) {
 function canonical(label) {
   const n = norm(label);
   if (SYNONIMY[n]) return SYNONIMY[n];
-  /* nie znamy synonimu - etykieta z duzej litery staje sie nazwa kanoniczna */
+  /* dopasowanie po poczatku frazy: "twórcze podejście do układania menu" -> "twórcze podejście" */
+  for (const key of Object.keys(SYNONIMY)) {
+    if (key.length >= 8 && n.startsWith(key)) return SYNONIMY[key];
+  }
   const t = String(label).trim();
   return t.charAt(0).toUpperCase() + t.slice(1);
 }
+
 
 /* ---------- CACHE ---------- */
 let cache = {};
