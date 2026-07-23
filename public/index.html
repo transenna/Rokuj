@@ -354,9 +354,13 @@ function renderJobs(){
   for(const r of results){
     const cls = r.score >= 70 ? 'high' : (r.score >= 40 ? 'mid' : 'low');
     let tags = '';
-    for(const s of (r.j.skills || [])){
-      tags += '<span class="tag ' + (userSkills[s] || '') + '">' + esc(s) + '</span>';
+    const origs = (r.j.skillsOrig && r.j.skillsOrig.length)
+      ? r.j.skillsOrig
+      : (r.j.skills || []).map(function(s){ return { o: s, k: s }; });
+    for(const t of origs){
+      tags += '<span class="tag ' + (userSkills[t.k] || '') + '" title="liczy się jako: ' + esc(t.k) + '">' + esc(t.o) + '</span>';
     }
+
     let meta = '';
     if(r.j.company){ meta += '<span>' + esc(r.j.company) + '</span><span class="dot"></span>'; }
     meta += '<span>' + esc(r.j.location || 'lokalizacja nieznana') + '</span>';
