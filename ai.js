@@ -188,12 +188,15 @@ if (require.main === module) {
 const GROUPS_FILE = path.join(__dirname, 'ai-groups.json');
 
 const GROUP_PROMPT = 'Dostaniesz liste nazw kompetencji z ogloszen o prace (po polsku). ' +
-  'Zgrupuj te, ktore oznaczaja TE SAMA kompetencje (np. "wspolpraca z zespolem", ' +
-  '"praca w zespole", "doswiadczenie w pracy zespolowej" to jedna grupa). ' +
-  'Zwroc JSON: {"grupy":[{"nazwa":"krotka nazwa kanoniczna w mianowniku","frazy":["...","..."]}]}\n' +
-  'Zasady: kazda fraza moze byc tylko w jednej grupie; frazy o roznym znaczeniu ' +
-  '(np. "jezyk angielski" i "jezyk niemiecki") to OSOBNE grupy; nazwa grupy ma byc ' +
-  'naturalna i zwiezla, np. "Praca w zespole", "Prawo jazdy kat. B".';
+  'Zgrupuj te, ktore oznaczaja TE SAMA lub niemal te sama kompetencje, takze gdy sa inaczej sformulowane ' +
+  '(np. "social media" i "prowadzenie mediow spolecznosciowych" = jedna grupa; ' +
+  '"zarzadzanie budzetem" i "praca z budzetami" = jedna grupa). ' +
+  'Frazy zbyt ogolne lub nic niemowiace (np. "inne umiejetnosci", "doswiadczenie w branzy", ' +
+  '"organizacja" bez kontekstu, "umiejetnosci") przypisz do grupy o nazwie "__ODRZUC__". ' +
+  'Zwroc JSON: {"grupy":[{"nazwa":"krotka nazwa kanoniczna w mianowniku","frazy":["..."]}]}\n' +
+  'Zasady: kazda fraza w dokladnie jednej grupie; kompetencje o roznym znaczeniu ' +
+  '(np. rozne jezyki obce) to OSOBNE grupy.';
+
 
 let groups = {};   /* fraza (norm) -> nazwa grupy */
 function loadGroups() {
@@ -216,8 +219,8 @@ async function groupSkills(allNames) {
   if (!unknown.length) { console.log('AI grupowanie: brak nowych nazw'); return; }
   console.log('AI grupowanie: ' + unknown.length + ' nowych nazw do zgrupowania');
   /* paczki po 300 nazw, zeby zmiescic sie w limicie odpowiedzi */
-  for (let i = 0; i < unknown.length; i += 300) {
-    const batch = unknown.slice(i, i + 300);
+  for (let i = 0; i < unknown.length; i += 150) {
+    const batch = unknown.slice(i, i + 150);
     try {
       const resp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
