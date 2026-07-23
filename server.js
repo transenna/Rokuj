@@ -4,7 +4,8 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const app = express();
-const { analyzeAll } = require('./ai');
+const { analyzeAll, groupSkills, groupName, loadGroups } = require('./ai');
+loadGroups();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -632,6 +633,9 @@ async function syncAll() {
     if (kept.length) console.log('Sync: uratowano ' + kept.length + ' ofert z poprzedniej bazy');
 
     await analyzeAll(fresh);   /* AI czyta nowe oferty (stare bierze z cache) */
+    const allNames = new Set();
+    for (const r of fresh) if (r.ai) for (const s of r.ai.skills) allNames.add(s.k);
+    await groupSkills(Array.from(allNames));
 
     const jobs = [];
     for (const r of fresh) {
@@ -642,7 +646,7 @@ async function syncAll() {
         remote: /zdaln|remote|home office/i.test(r.text),
         portal: r.portal,
         url: r.url,
-        skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => s.k))) : detectSkills(r.text, []),
+        skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => groupName(s.k)))) : detectSkills(r.text, []),
         skillsOrig: r.ai ? r.ai.skills : [],
         edu: r.ai ? r.ai.edu : null,
         age: r.age,
@@ -653,13 +657,30 @@ async function syncAll() {
     for (const j of kept) jobs.push(j);
 
     const cats = baseCats();
+    /* policz, w ilu ofertach wystepuje kazda kompetencja (po nazwach grupowych) */
+    const skillFreq = {};
+    for (const r of fresh) {
+      if (!r.ai) continue;
+      const seenIn = new Set();
+      for (const s of r.ai.skills) {
+        const g = groupName(s.k);
+        if (seenIn.has(g)) continue;
+        seenIn.add(g);
+        skillFreq[g] = (skillFreq[g] || 0) + 1;
+      }
+    }
+    /* do panelu trafiaja tylko powtarzalne */
+    const MIN_SKILL_OFFERS = 3;
     for (const r of fresh) {
       if (!r.ai) continue;
       for (const s of r.ai.skills) {
+        const g = groupName(s.k);
+        if ((skillFreq[g] || 0) < MIN_SKILL_OFFERS) continue;
         if (!cats[s.cat]) cats[s.cat] = [];
-        if (!cats[s.cat].includes(s.k)) cats[s.cat].push(s.k);
+        if (!cats[s.cat].includes(g)) cats[s.cat].push(g);
       }
     }
+
 
     const perPortal = {};
     for (const j of jobs) perPortal[j.portal] = (perPortal[j.portal] || 0) + 1;
