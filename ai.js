@@ -157,4 +157,27 @@ async function analyzeAll(offers) {
       o.ai = toResult(raw);
       cache[h] = o.ai;
       calls += 1;
-      if (calls % 200 === 0) { saveCache(); console.log('AI: 
+      if (calls % 200 === 0) { saveCache(); console.log('AI: przeanalizowano ' + calls + ' nowych ofert...'); }
+      await new Promise(r => setTimeout(r, AI_PAUSE_MS));
+    } catch (e) {
+      errors += 1;
+      if (errors <= 3) console.error('AI blad: ' + e.message);
+      if (errors >= 20) { console.error('AI: za duzo bledow, przerywam analize'); break; }
+    }
+  }
+  saveCache();
+  console.log('AI: gotowe (z cache: ' + hits + ', nowych: ' + calls + ', bledow: ' + errors + ')');
+}
+
+/* ---------- AUTOTEST: uruchom "node ai.js" ---------- */
+if (require.main === module) {
+  (async () => {
+    const sample = [{
+      text: 'Kucharz. Wymagania: wykształcenie zawodowe gastronomiczne, doświadczenie min. 2 lata na podobnym stanowisku, aktualna książeczka sanepidowska, umiejętność pracy w zespole, twórcze podejście do układania menu. Oferujemy 5500-6500 zł brutto miesięcznie.',
+    }];
+    await analyzeAll(sample);
+    console.log(JSON.stringify(sample.at(0).ai, null, 2));
+  })();
+}
+
+module.exports = { analyzeAll };
