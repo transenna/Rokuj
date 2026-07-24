@@ -64,6 +64,9 @@ details[open] summary::before{transform:rotate(45deg);}
   border-radius:999px;font-size:.72rem;padding:1px 9px;font-weight:700;}
 .skill-row{display:flex;justify-content:space-between;align-items:center;
   gap:8px;padding:4px 2px 4px 15px;font-size:.88rem;}
+.subcat{border-left:2px solid var(--line);margin:2px 0 6px 4px;}
+.subcat-head{background:#FAFAFB;border-radius:8px;}
+.sub-item{padding-left:26px;font-size:.85rem;}
 .toggle{display:flex;gap:5px;flex-shrink:0;}
 .toggle button{width:28px;height:28px;border-radius:50%;cursor:pointer;
   border:1.5px solid var(--line);background:var(--card);color:#B6BCC6;
@@ -241,31 +244,64 @@ async function load(){
 }
 
 function renderSkills(){
-  const present = new Set();
+  /* kolejnosc kategorii: wg liczby ofert; uniwersalne i wymogi na koncu */
+  const NA_KONCU = ['Wymogi formalne i inne', 'Kompetencje uniwersalne'];
+  const catCount = {};
   for(const j of JOBS){
-    const sk = j.skills || [];
-    for(const s of sk) present.add(s);
+    for(const s of (j.skills || [])) catCount[s] = (catCount[s] || 0) + 1;
   }
+  function catWeight(cat){
+    let n = 0;
+    for(const sub of Object.keys(CATEGORIES[cat] || {})){
+      for(const s of CATEGORIES[cat][sub]) n += (catCount[s] || 0);
+    }
+    return n;
+  }
+  const catNames = Object.keys(CATEGORIES).sort(function(a, b){
+    const ea = NA_KONCU.indexOf(a), eb = NA_KONCU.indexOf(b);
+    if(ea !== -1 || eb !== -1) return (ea === -1 ? -1 : (eb === -1 ? 1 : ea - eb));
+    return catWeight(b) - catWeight(a);
+  });
+
   let html = '';
-  for(const cat of Object.keys(CATEGORIES)){
-    const visible = CATEGORIES[cat].filter(function(s){ return present.has(s); });
-    if(!visible.length) continue;
-    const marked = visible.filter(function(s){ return userSkills[s]; }).length;
+  for(const cat of catNames){
+    const subs = CATEGORIES[cat];
+    let markedInCat = 0, anyVisible = false, subHtml = '';
+    for(const sub of Object.keys(subs)){
+      const items = subs[sub];
+      if(!items.length) continue;
+      anyVisible = true;
+      const marked = items.filter(function(s){ return userSkills[s]; }).length;
+      markedInCat += marked;
+      /* stan zbiorczy podkategorii: jesli WSZYSTKIE dzieci maja ten sam stan, pokaz go */
+      let subState = '';
+      if(items.length && userSkills[items.at(0)]){
+        const st = userSkills[items.at(0)];
+        if(items.every(function(s){ return userSkills[s] === st; })) subState = st;
+      }
+      const singleItem = (items.length === 1 && items.at(0) === sub);
+      if(singleItem){
+        /* podkategoria = jedna pozycja o tej samej nazwie: pokaz plasko */
+        const st = userSkills[items.at(0)] || '';
+        subHtml += '<div class="skill-row" data-skill="' + esc(items.at(0)) + '">' +
+          '<span>' + esc(items.at(0)) + '</span>' + toggleHtml(st) + '</div>';
+        continue;
+      }
+      subHtml += '<div class="subcat"><div class="skill-row subcat-head" data-sub="' + esc(cat) + '||' + esc(sub) + '">' +
+        '<span><b>' + esc(sub) + '</b>' + (marked ? ' <span class="cat-count">' + marked + '</span>' : '') + '</span>' +
+        toggleHtml(subState) + '</div>';
+      for(const s of items){
+        const st = userSkills[s] || '';
+        subHtml += '<div class="skill-row sub-item" data-skill="' + esc(s) + '">' +
+          '<span>' + esc(s) + '</span>' + toggleHtml(st) + '</div>';
+      }
+      subHtml += '</div>';
+    }
+    if(!anyVisible) continue;
     html += '<details ' + (openCats[cat] ? 'open' : '') + ' data-cat="' + esc(cat) + '">' +
       '<summary>' + esc(cat) +
-      (marked ? '<span class="cat-count">' + marked + '</span>' : '') +
-      '</summary>';
-    for(const s of visible){
-      const st = userSkills[s] || '';
-      html += '<div class="skill-row" data-skill="' + esc(s) + '">' +
-        '<span>' + esc(s) + '</span>' +
-        '<span class="toggle">' +
-        '<button class="have '  + (st === 'have'  ? 'active' : '') + '" data-state="have"  title="Mam">' + ICON_HAVE + '</button>' +
-        '<button class="learn ' + (st === 'learn' ? 'active' : '') + '" data-state="learn" title="Mogę nabyć">' + ICON_LEARN + '</button>' +
-        '<button class="never ' + (st === 'never' ? 'active' : '') + '" data-state="never" title="Nie nabędę">' + ICON_NEVER + '</button>' +
-        '</span></div>';
-    }
-    html += '</details>';
+      (markedInCat ? '<span class="cat-count">' + markedInCat + '</span>' : '') +
+      '</summary>' + subHtml + '</details>';
   }
   const box = document.getElementById('skills');
   box.innerHTML = html;
@@ -275,28 +311,36 @@ function renderSkills(){
   }
 }
 
+function toggleHtml(st){
+  return '<span class="toggle">' +
+    '<button class="have '  + (st === 'have'  ? 'active' : '') + '" data-state="have"  title="Mam">' + ICON_HAVE + '</button>' +
+    '<button class="learn ' + (st === 'learn' ? 'active' : '') + '" data-state="learn" title="Mogę nabyć">' + ICON_LEARN + '</button>' +
+    '<button class="never ' + (st === 'never' ? 'active' : '') + '" data-state="never" title="Nie nabędę">' + ICON_NEVER + '</button>' +
+    '</span>';
+}
+
+
 document.getElementById('skills').addEventListener('click', function(e){
   const btn = e.target.closest('button[data-state]');
   if(!btn) return;
+  const head = btn.closest('.subcat-head');
+  if(head){
+    /* klik zbiorczy: ustaw stan wszystkim pozycjom podkategorii */
+    const parts = head.dataset.sub.split('||');
+    const items = (CATEGORIES[parts.at(0)] || {})[parts.at(1)] || [];
+    const st = btn.dataset.state;
+    const allSame = items.every(function(s){ return userSkills[s] === st; });
+    for(const s of items){
+      if(allSame) delete userSkills[s];
+      else userSkills[s] = st;
+    }
+    saveProfile(); renderSkills(); renderJobs();
+    return;
+  }
   const row = btn.closest('.skill-row');
-  setS(row.dataset.skill, btn.dataset.state);
+  if(row && row.dataset.skill) setS(row.dataset.skill, btn.dataset.state);
 });
 
-function setS(skill, state){
-  if(userSkills[skill] === state) delete userSkills[skill];
-  else userSkills[skill] = state;
-  saveProfile();
-  renderSkills();
-  renderJobs();
-}
-
-document.getElementById('btnReset').addEventListener('click', function(){
-  if(!confirm('Na pewno wyczyścić wszystkie oznaczenia kompetencji?')) return;
-  userSkills = {};
-  saveProfile();
-  renderSkills();
-  renderJobs();
-});
 
   function ageText(age){
   if(age == null) return '';
