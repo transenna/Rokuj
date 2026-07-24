@@ -52,6 +52,14 @@ aside{background:var(--card);border:1px solid var(--line);border-radius:var(--ra
   box-shadow:var(--shadow);padding:18px;align-self:start;}
 aside h2{margin:0 0 4px;font-size:1.05rem;}
 aside .hint{font-size:.8rem;color:var(--ink-soft);margin:0 0 14px;}
+.howto{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;
+  padding:10px 12px;margin:0 0 14px;font-size:.85rem;display:flex;flex-direction:column;gap:6px;}
+.howto b{color:var(--ink);font-size:.88rem;}
+.howto .lg{display:flex;align-items:center;gap:7px;}
+.howto i{font-style:normal;width:20px;height:20px;border-radius:50%;color:#fff;
+  display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+.howto .lg-have{background:var(--ok);} .howto .lg-learn{background:var(--accent);} .howto .lg-never{background:var(--bad);}
+.howto small{color:var(--ink-soft);}
 details{border-top:1px solid var(--line);}
 details:first-of-type{border-top:none;}
 details summary{cursor:pointer;font-weight:600;font-size:.92rem;color:var(--ink);
@@ -141,7 +149,14 @@ footer{text-align:center;color:#9CA3AF;font-size:.8rem;padding:26px;}
 
   <aside>
     <h2>Twoje kompetencje</h2>
-    <p class="hint">Oznacz: mam · mogę nabyć · nie nabędę.<br>Ponowne kliknięcie odznacza.</p>
+    <div class="howto">
+      <b>Oznacz, co potrafisz – a policzymy, gdzie rokujesz:</b>
+      <span class="lg"><i class="lg-have">✓</i> mam</span>
+      <span class="lg"><i class="lg-learn">+</i> mogę nabyć</span>
+      <span class="lg"><i class="lg-never">✕</i> nie nabędę</span>
+      <small>Ponowne kliknięcie odznacza.</small>
+    </div>
+
     <div id="skills"></div>
     <button class="reset-btn" id="btnReset">
       <svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>
@@ -245,7 +260,7 @@ async function load(){
 
 function renderSkills(){
   /* kolejnosc kategorii: wg liczby ofert; uniwersalne i wymogi na koncu */
-  const NA_KONCU = ['Wymogi formalne i inne', 'Kompetencje uniwersalne'];
+  const NA_KONCU = ['Języki obce', 'Wymogi formalne i inne', 'Kompetencje uniwersalne'];
   const catCount = {};
   for(const j of JOBS){
     for(const s of (j.skills || [])) catCount[s] = (catCount[s] || 0) + 1;
@@ -303,11 +318,16 @@ function renderSkills(){
       (markedInCat ? '<span class="cat-count">' + markedInCat + '</span>' : '') +
       '</summary>' + subHtml + '</details>';
   }
-  const box = document.getElementById('skills');
-  box.innerHTML = html;
-  const detailsList = box.querySelectorAll('details');
+   const detailsList = box.querySelectorAll('details');
   for(const d of detailsList){
-    d.addEventListener('toggle', function(){ openCats[d.dataset.cat] = d.open; });
+    d.addEventListener('toggle', function(){
+      openCats[d.dataset.cat] = d.open;
+      if(d.open){
+        for(const other of detailsList){
+          if(other !== d && other.open){ other.open = false; openCats[other.dataset.cat] = false; }
+        }
+      }
+    });
   }
 }
 
@@ -319,6 +339,13 @@ function toggleHtml(st){
     '</span>';
 }
 
+function setS(skill, state){
+  if(userSkills[skill] === state) delete userSkills[skill];
+  else userSkills[skill] = state;
+  saveProfile();
+  renderSkills();
+  renderJobs();
+}
 
 document.getElementById('skills').addEventListener('click', function(e){
   const btn = e.target.closest('button[data-state]');
