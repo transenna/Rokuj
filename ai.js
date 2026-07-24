@@ -3,6 +3,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { allItems } = require('./taxonomy');
 
 const KEY = process.env.OPENAI_API_KEY;
 const MODEL = 'gpt-4o-mini';
@@ -187,15 +188,12 @@ if (require.main === module) {
 /* ---------- GRUPOWANIE KOMPETENCJI (drugi przebieg AI) ---------- */
 const GROUPS_FILE = path.join(__dirname, 'ai-groups.json');
 
-const GROUP_PROMPT = 'Dostaniesz liste nazw kompetencji z ogloszen o prace (po polsku). ' +
-  'Zgrupuj te, ktore oznaczaja TE SAMA lub niemal te sama kompetencje, takze gdy sa inaczej sformulowane ' +
-  '(np. "social media" i "prowadzenie mediow spolecznosciowych" = jedna grupa; ' +
-  '"zarzadzanie budzetem" i "praca z budzetami" = jedna grupa). ' +
-  'Frazy zbyt ogolne lub nic niemowiace (np. "inne umiejetnosci", "doswiadczenie w branzy", ' +
-  '"organizacja" bez kontekstu, "umiejetnosci") przypisz do grupy o nazwie "__ODRZUC__". ' +
-  'Zwroc JSON: {"grupy":[{"nazwa":"krotka nazwa kanoniczna w mianowniku","frazy":["..."]}]}\n' +
-  'Zasady: kazda fraza w dokladnie jednej grupie; kompetencje o roznym znaczeniu ' +
-  '(np. rozne jezyki obce) to OSOBNE grupy.';
+const GROUP_PROMPT_HEADER = 'Dostaniesz liste fraz-kompetencji z ogloszen o prace oraz zamknieta LISTE POZYCJI taksonomii. ' +
+  'Kazda fraze przyporzadkuj do JEDNEJ pozycji z listy (pole "cel"). ' +
+  'Jesli fraza nie pasuje do zadnej pozycji albo jest zbyt ogolna/nic niemowiaca ' +
+  '(np. "inne umiejetnosci", "doswiadczenie w branzy", samo "organizacja"), ustaw "cel": "ODRZUC". ' +
+  'Frazy o wyksztalceniu (np. "magister farmacji", "wyksztalcenie kierunkowe") tez ustaw na "ODRZUC" (sa obslugiwane osobno). ' +
+  'Zwroc JSON: {"mapa":[{"fraza":"...","cel":"..."}]}. "cel" musi byc DOKLADNIE nazwa pozycji z listy albo "ODRZUC".\n\nLISTA POZYCJI:\n';
 
 
 let groups = {};   /* fraza (norm) -> nazwa grupy */
@@ -211,16 +209,17 @@ function saveGroups() {
 async function groupSkills(allNames) {
   if (!KEY) return;
   loadGroups();
-  /* tylko nazwy, ktorych jeszcze nie znamy */
+  const items = allItems();
+  const itemNames = items.map(x => x.item);
+  const listText = itemNames.join('\n');
   const unknown = [];
   for (const n of allNames) {
     if (!groups[norm(n)]) unknown.push(n);
   }
-  if (!unknown.length) { console.log('AI grupowanie: brak nowych nazw'); return; }
-  console.log('AI grupowanie: ' + unknown.length + ' nowych nazw do zgrupowania');
-  /* paczki po 300 nazw, zeby zmiescic sie w limicie odpowiedzi */
-  for (let i = 0; i < unknown.length; i += 150) {
-    const batch = unknown.slice(i, i + 150);
+  if (!unknown.length) { console.log('AI mapowanie: brak nowych fraz'); return; }
+  console.log('AI mapowanie: ' + unknown.length + ' nowych fraz');
+  for (let i = 0; i < unknown.length; i += 100) {
+    const batch = unknown.slice(i, i + 100);
     try {
       const resp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -230,7 +229,7 @@ async function groupSkills(allNames) {
           temperature: 0,
           response_format: { type: 'json_object' },
           messages: [
-            { role: 'system', content: GROUP_PROMPT },
+            { role: 'system', content: GROUP_PROMPT_HEADER + listText },
             { role: 'user', content: JSON.stringify(batch) },
           ],
         }),
@@ -238,17 +237,20 @@ async function groupSkills(allNames) {
       if (!resp.ok) throw new Error('OpenAI HTTP ' + resp.status);
       const data = await resp.json();
       const parsed = JSON.parse(data.choices.at(0).message.content);
-      for (const g of (parsed.grupy || [])) {
-        if (!g || !g.nazwa || !Array.isArray(g.frazy)) continue;
-        for (const f of g.frazy) groups[norm(f)] = g.nazwa;
+      for (const m of (parsed.mapa || [])) {
+        if (!m || !m.fraza || !m.cel) continue;
+        if (m.cel === 'ODRZUC') { groups[norm(m.fraza)] = '__ODRZUC__'; continue; }
+        if (itemNames.includes(m.cel)) groups[norm(m.fraza)] = m.cel;
+        /* cel spoza listy = ignorujemy, fraza zostanie zmapowana nastepnym razem */
       }
     } catch (e) {
-      console.error('AI grupowanie blad: ' + e.message);
+      console.error('AI mapowanie blad: ' + e.message);
     }
   }
   saveGroups();
-  console.log('AI grupowanie: slownik ma ' + Object.keys(groups).length + ' fraz');
+  console.log('AI mapowanie: slownik ma ' + Object.keys(groups).length + ' fraz');
 }
+
 
 function groupName(name) {
   return groups[norm(name)] || name;
