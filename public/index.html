@@ -318,6 +318,8 @@ function renderSkills(){
       (markedInCat ? '<span class="cat-count">' + markedInCat + '</span>' : '') +
       '</summary>' + subHtml + '</details>';
   }
+  const box = document.getElementById('skills');
+  box.innerHTML = html;
    const detailsList = box.querySelectorAll('details');
   for(const d of detailsList){
     d.addEventListener('toggle', function(){
