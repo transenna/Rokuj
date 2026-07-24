@@ -130,8 +130,8 @@ const TAXONOMY = {
   },
   'Edukacja i szkolenia': {
     'Uprawnienia pedagogiczne': ['Przygotowanie pedagogiczne', 'Oligofrenopedagogika'],
-    'Nauczanie': ['Nauczanie przedmiotowe', 'Wychowanie przedszkolne / wczesnoszkolne'],
-    'Języki i kursy': ['Lektor języka', 'Prowadzenie kursów i warsztatów'],
+    'Nauczanie': ['Nauczanie matematyki', 'Nauczanie języka polskiego', 'Nauczanie historii', 'Nauczanie informatyki', 'Nauczanie fizyki', 'Nauczanie chemii', 'Nauczanie biologii', 'Nauczanie geografii', 'Nauczanie języka angielskiego', 'Nauczanie języka niemieckiego', 'Nauczanie WF', 'Nauczanie muzyki i plastyki', 'Nauczanie przedmiotów zawodowych', 'Nauczanie innego przedmiotu', 'Wychowanie przedszkolne / wczesnoszkolne'],
+    'Języki i kursy': ['Lektor języka angielskiego', 'Lektor języka niemieckiego', 'Lektor innego języka', 'Prowadzenie kursów i warsztatów'],
     'Wsparcie psychologiczne': ['Psychologia', 'Terapia i logopedia', 'Terapia uzależnień'],
     'Instruktorzy': ['Instruktor sportu / rekreacji'],
   },
