@@ -656,32 +656,33 @@ async function syncAll() {
     }
     for (const j of kept) jobs.push(j);
 
-    const cats = baseCats();
-    /* policz, w ilu ofertach wystepuje kazda kompetencja (po nazwach grupowych) */
+    const { TAXONOMY } = require('./taxonomy');
+    const itemToPlace = {};
+    for (const cat of Object.keys(TAXONOMY)) {
+      for (const sub of Object.keys(TAXONOMY[cat])) {
+        for (const it of TAXONOMY[cat][sub]) itemToPlace[it] = { cat, sub };
+      }
+    }
     const skillFreq = {};
     for (const r of fresh) {
       if (!r.ai) continue;
       const seenIn = new Set();
       for (const s of r.ai.skills) {
         const g = groupName(s.k);
-        if (g === '__ODRZUC__') continue;
-        if (seenIn.has(g)) continue;
+        if (g === '__ODRZUC__' || !itemToPlace[g] || seenIn.has(g)) continue;
         seenIn.add(g);
         skillFreq[g] = (skillFreq[g] || 0) + 1;
       }
     }
-    /* do panelu trafiaja tylko powtarzalne */
-    const MIN_SKILL_OFFERS = 3;
-    for (const r of fresh) {
-      if (!r.ai) continue;
-      for (const s of r.ai.skills) {
-        const g = groupName(s.k);
-        if (g === '__ODRZUC__') continue;
-        if ((skillFreq[g] || 0) < MIN_SKILL_OFFERS) continue;
-        if (!cats[s.cat]) cats[s.cat] = [];
-        if (!cats[s.cat].includes(g)) cats[s.cat].push(g);
-      }
+    /* cats: {kategoria: {podkategoria: [pozycje]}} - tylko wystepujace w ofertach */
+    const cats = {};
+    for (const g of Object.keys(skillFreq)) {
+      const p = itemToPlace[g];
+      if (!cats[p.cat]) cats[p.cat] = {};
+      if (!cats[p.cat][p.sub]) cats[p.cat][p.sub] = [];
+      cats[p.cat][p.sub].push(g);
     }
+
 
 
 
