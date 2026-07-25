@@ -49,17 +49,20 @@ header.brand{background:var(--card);border-bottom:1px solid var(--line);box-shad
   stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
 
 aside{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-  box-shadow:var(--shadow);padding:18px;align-self:start;}
+  box-shadow:var(--shadow);padding:18px;align-self:start;
+  position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;}
+
 aside h2{margin:0 0 4px;font-size:1.05rem;}
 aside .hint{font-size:.8rem;color:var(--ink-soft);margin:0 0 14px;}
-.howto{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;
-  padding:10px 12px;margin:0 0 14px;font-size:.85rem;display:flex;flex-direction:column;gap:6px;}
-.howto b{color:var(--ink);font-size:.88rem;}
-.howto .lg{display:flex;align-items:center;gap:7px;}
-.howto i{font-style:normal;width:20px;height:20px;border-radius:50%;color:#fff;
-  display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+.howto{background:#FBFBFC;border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:10px;padding:12px 14px;margin:0 0 16px;font-size:.85rem;
+  display:flex;flex-direction:column;gap:7px;}
+.howto b{color:var(--ink);font-size:.9rem;font-weight:600;}
+.howto .lg{display:flex;align-items:center;gap:8px;color:var(--ink-soft);}
+.howto i{font-style:normal;width:18px;height:18px;border-radius:50%;color:#fff;flex-shrink:0;
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
 .howto .lg-have{background:var(--ok);} .howto .lg-learn{background:var(--accent);} .howto .lg-never{background:var(--bad);}
-.howto small{color:var(--ink-soft);}
+.howto small{color:#9CA3AF;font-size:.75rem;}
 details{border-top:1px solid var(--line);}
 details:first-of-type{border-top:none;}
 details summary{cursor:pointer;font-weight:600;font-size:.92rem;color:var(--ink);
@@ -73,7 +76,9 @@ details[open] summary::before{transform:rotate(45deg);}
 .skill-row{display:flex;justify-content:space-between;align-items:center;
   gap:8px;padding:4px 2px 4px 15px;font-size:.88rem;}
 .subcat{border-left:2px solid var(--line);margin:2px 0 6px 4px;}
-.subcat-head{background:#FAFAFB;border-radius:8px;}
+.subcat-head{background:transparent;border-radius:8px;}
+.subcat-head:hover{background:#FAFAFB;}
+.subcat{border-left:2px solid var(--accent-soft);margin:2px 0 8px 4px;}
 .sub-item{padding-left:26px;font-size:.85rem;}
 .toggle{display:flex;gap:5px;flex-shrink:0;}
 .toggle button{width:28px;height:28px;border-radius:50%;cursor:pointer;
@@ -324,11 +329,13 @@ function renderSkills(){
   for(const d of detailsList){
     d.addEventListener('toggle', function(){
       openCats[d.dataset.cat] = d.open;
-      if(d.open){
+    if(d.open){
         for(const other of detailsList){
           if(other !== d && other.open){ other.open = false; openCats[other.dataset.cat] = false; }
         }
+        d.scrollIntoView({block:'nearest'});
       }
+
     });
   }
 }
@@ -348,6 +355,14 @@ function setS(skill, state){
   renderSkills();
   renderJobs();
 }
+
+document.getElementById('btnReset').addEventListener('click', function(){
+  if(!confirm('Na pewno wyczyścić wszystkie oznaczenia kompetencji?')) return;
+  userSkills = {};
+  saveProfile();
+  renderSkills();
+  renderJobs();
+});
 
 document.getElementById('skills').addEventListener('click', function(e){
   const btn = e.target.closest('button[data-state]');
