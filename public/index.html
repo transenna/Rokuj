@@ -262,6 +262,29 @@ async function load(){
   renderSkills();
   renderJobs();
 }
+function buildEduHtml(){
+  const LEVELS = ['podstawowe', 'zawodowe', 'średnie', 'wyższe'];
+  const dirFreq = {};
+  for(const j of JOBS){
+    if(j.edu && j.edu.kierunek) dirFreq[j.edu.kierunek] = (dirFreq[j.edu.kierunek] || 0) + 1;
+  }
+  const dirs = Object.keys(dirFreq).sort(function(a, b){ return dirFreq[b] - dirFreq[a]; }).slice(0, 30);
+  let marked = 0, inner = '';
+  inner += '<div class="skill-row"><span><b>Poziom (zaznacz najwyższy, jaki masz)</b></span></div>';
+  for(const l of LEVELS){
+    const key = 'EDU:' + l; const st = userSkills[key] || ''; if(st) marked++;
+    inner += '<div class="skill-row sub-item" data-skill="' + key + '"><span>Wykształcenie ' + l + '</span>' + toggleHtml(st) + '</div>';
+  }
+  if(dirs.length){
+    inner += '<div class="skill-row"><span><b>Kierunek (jeśli masz kierunkowe)</b></span></div>';
+    for(const d of dirs){
+      const key = 'EDUK:' + d; const st = userSkills[key] || ''; if(st) marked++;
+      inner += '<div class="skill-row sub-item" data-skill="' + key + '"><span>' + esc(d) + '</span>' + toggleHtml(st) + '</div>';
+    }
+  }
+  return '<details ' + (openCats['__EDU__'] ? 'open' : '') + ' data-cat="__EDU__"><summary>Wykształcenie' +
+    (marked ? '<span class="cat-count">' + marked + '</span>' : '') + '</summary>' + inner + '</details>';
+}
 
 function renderSkills(){
   /* kolejnosc kategorii: wg liczby ofert; uniwersalne i wymogi na koncu */
@@ -285,6 +308,7 @@ function renderSkills(){
 
   let html = '';
   for(const cat of catNames){
+    if(cat === 'Języki obce') html += buildEduHtml();
     const subs = CATEGORIES[cat];
     let markedInCat = 0, anyVisible = false, subHtml = '';
     for(const sub of Object.keys(subs)){
@@ -434,7 +458,9 @@ function renderJobs(){
 
   const box = document.getElementById('jobs');
   if(!results.length){
-    box.innerHTML = '<div class="empty">Portal w przygotowaniu – trwa integracja źródeł ofert.<br>Zapraszamy wkrótce!</div>';
+    box.innerHTML = JOBS.length
+      ? '<div class="empty">Brak pasujących ofert.<br>Poluzuj filtry lub zmień ustawienia kompetencji.</div>'
+      : '<div class="empty">Portal w przygotowaniu – trwa integracja źródeł ofert.<br>Zapraszamy wkrótce!</div>';
     return;
   }
 
