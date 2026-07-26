@@ -308,7 +308,6 @@ function renderSkills(){
 
   let html = '';
   for(const cat of catNames){
-    if(cat === 'Języki obce') html += buildEduHtml();
     const subs = CATEGORIES[cat];
     let markedInCat = 0, anyVisible = false, subHtml = '';
     for(const sub of Object.keys(subs)){
@@ -347,6 +346,7 @@ function renderSkills(){
       (markedInCat ? '<span class="cat-count">' + markedInCat + '</span>' : '') +
       '</summary>' + subHtml + '</details>';
   }
+     html += buildEduHtml();
   const box = document.getElementById('skills');
   box.innerHTML = html;
    const detailsList = box.querySelectorAll('details');
