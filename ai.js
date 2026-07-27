@@ -141,7 +141,12 @@ function toResult(raw) {
   if (raw.wyksztalcenie && raw.wyksztalcenie.poziom) {
     const p = norm(raw.wyksztalcenie.poziom).replace('srednie', 'średnie').replace('wyzsze', 'wyższe');
     if (['podstawowe', 'zawodowe', 'średnie', 'wyższe'].includes(p)) {
-      edu = { poziom: p, kierunek: raw.wyksztalcenie.kierunek ? norm(raw.wyksztalcenie.kierunek) : null };
+       let kier = raw.wyksztalcenie.kierunek ? norm(raw.wyksztalcenie.kierunek) : null;
+      /* smieci: "null", "kierunkowe", "brak" itp. = brak konkretnego kierunku */
+      if (kier && (kier === 'null' || kier === 'brak' || kier === 'kierunkowe' ||
+          kier === 'dowolny' || kier === 'ogólnokształcące' || kier === 'branżowe' ||
+          kier.length < 4)) kier = null;
+      edu = { poziom: p, kierunek: kier };
     }
   }
   const salary = raw.stawka ? String(raw.stawka).trim() : null;
@@ -259,6 +264,48 @@ async function groupSkills(allNames) {
 function groupName(name) {
   return groups[norm(name)] || name;
 }
+/* ---------- NORMALIZACJA KIERUNKOW WYKSZTALCENIA ---------- */
+const EDU_PROMPT = 'Dostaniesz liste nazw kierunkow wyksztalcenia z ogloszen o prace (po polsku, rozne formy gramatyczne). ' +
+  'Zgrupuj te oznaczajace ten sam kierunek i nadaj grupie krotka nazwe-rzeczownik (np. "pedagogika", "elektrotechnika", "budownictwo", "ekonomia", "gastronomia", "informatyka", "mechanika"). ' +
+  'Fraza typu "elektryczny, elektroenergetyczny lub pokrewny" -> "elektrotechnika". ' +
+  'Zwroc JSON: {"grupy":[{"nazwa":"...","frazy":["..."]}]}.';
 
-module.exports = { analyzeAll, groupSkills, groupName, loadGroups };
+async function normalizeEduDirs(allDirs) {
+  if (!KEY) return;
+  loadGroups();
+  const unknown = allDirs.filter(d => !groups['EDUDIR:' + norm(d)]);
+  if (!unknown.length) return;
+  console.log('AI kierunki: ' + unknown.length + ' nowych do znormalizowania');
+  for (let i = 0; i < unknown.length; i += 150) {
+    const batch = unknown.slice(i, i + 150);
+    try {
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + KEY },
+        body: JSON.stringify({
+          model: MODEL, temperature: 0, response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: EDU_PROMPT },
+            { role: 'user', content: JSON.stringify(batch) },
+          ],
+        }),
+      });
+      if (!resp.ok) throw new Error('OpenAI HTTP ' + resp.status);
+      const data = await resp.json();
+      const parsed = JSON.parse(data.choices.at(0).message.content);
+      for (const g of (parsed.grupy || [])) {
+        if (!g || !g.nazwa || !Array.isArray(g.frazy)) continue;
+        for (const f of g.frazy) groups['EDUDIR:' + norm(f)] = norm(g.nazwa);
+      }
+    } catch (e) { console.error('AI kierunki blad: ' + e.message); }
+  }
+  saveGroups();
+}
+
+function eduDirName(d) {
+  return groups['EDUDIR:' + norm(d)] || norm(d);
+}
+
+module.exports = { analyzeAll, groupSkills, groupName, loadGroups, normalizeEduDirs, eduDirName };
+
 
