@@ -4,7 +4,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const app = express();
-const { analyzeAll, groupSkills, groupName, loadGroups } = require('./ai');
+const { analyzeAll, groupSkills, groupName, loadGroups, normalizeEduDirs, eduDirName } = require('./ai');
 loadGroups();
 const PORT = process.env.PORT || 3000;
 
@@ -636,6 +636,9 @@ async function syncAll() {
     const allNames = new Set();
     for (const r of fresh) if (r.ai) for (const s of r.ai.skills) allNames.add(s.k);
     await groupSkills(Array.from(allNames));
+    const allDirs = new Set();
+    for (const r of fresh) if (r.ai && r.ai.edu && r.ai.edu.kierunek) allDirs.add(r.ai.edu.kierunek);
+    await normalizeEduDirs(Array.from(allDirs));
 
     const jobs = [];
     for (const r of fresh) {
@@ -648,7 +651,7 @@ async function syncAll() {
         url: r.url,
         skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => groupName(s.k)).filter(g => g !== '__ODRZUC__'))) : detectSkills(r.text, []),
         skillsOrig: r.ai ? r.ai.skills.map(s => ({ o: s.o, k: groupName(s.k) })).filter(t => t.k !== '__ODRZUC__') : [],
-        edu: r.ai ? r.ai.edu : null,
+        edu: (r.ai && r.ai.edu) ? { poziom: r.ai.edu.poziom, kierunek: r.ai.edu.kierunek ? eduDirName(r.ai.edu.kierunek) : null } : null,
         age: r.age,
         posted: new Date(now - (r.age || 0) * 86400000).toISOString(),
         salary: r.salary || (r.ai && r.ai.salary) || null,
