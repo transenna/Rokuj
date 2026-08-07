@@ -490,6 +490,14 @@ function scoreJob(j, userSkills) {
       else if (ok && st === 'learn') learn += 1;
     } else if (ok) have += 1;
   }
+    for (const e of (j.exp || [])) {
+    total += 1;
+    const st = userSkills['EXP:' + e.dz];
+    if (st === 'never') blocked = true;
+    else if (st === 'have') have += 1;
+    else if (st === 'learn') learn += 1;
+  }
+
   if (blocked) return -1;
   return total ? Math.round((have + learn * 0.5) / total * 100) : 0;
 }
@@ -517,6 +525,86 @@ app.post('/api/search', (req, res) => {
   const items = out.slice(page * size, (page + 1) * size)
     .map(r => Object.assign({ score: r.score }, r.j));
   res.json({ total: out.length, page, size, jobs: items });
+});
+/* metadane do budowy panelu i filtrow */
+app.get('/api/meta', (req, res) => {
+  const portals = {};
+  const eduDirs = {};
+  const expDoms = {};
+  for (const j of DATA.jobs) {
+    portals[j.portal] = (portals[j.portal] || 0) + 1;
+    if (j.edu && j.edu.kierunek) eduDirs[j.edu.kierunek] = (eduDirs[j.edu.kierunek] || 0) + 1;
+    for (const e of (j.exp || [])) expDoms[e.dz] = (expDoms[e.dz] || 0) + 1;
+  }
+  res.json({ cats: DATA.cats, portals, eduDirs, expDoms, total: DATA.jobs.length, lastSync: DATA.lastSync });
+});
+/* doradca: czego brakuje do 100% w najwiekszej liczbie ofert + lepsze stawki */
+function salaryNum(s) {
+  if (!s) return 0;
+  const m = String(s).replace(/[\s\u00A0\u202F]/g, '').match(/\d+/g);
+  if (!m) return 0;
+  let n = Math.max.apply(null, m.map(Number));
+  if (/godz|hour/i.test(s)) n *= 168;
+  else if (/tydz|week/i.test(s)) n *= 4.33;
+  else if (/rok|year|annum/i.test(s)) n = Math.round(n / 12);
+  return n;
+}
+
+function missingItems(j, userSkills) {
+  let blocked = false;
+  const missing = [];
+  for (const s of (j.skills || [])) {
+    const st = userSkills[s];
+    if (st === 'never') blocked = true;
+    else if (st !== 'have' && st !== 'learn') missing.push(s);
+  }
+  if (j.edu && j.edu.poziom) {
+    const LV = ['podstawowe', 'zawodowe', 'średnie', 'wyższe'];
+    let my = -1;
+    for (let i = 0; i < LV.length; i++) if (userSkills['EDU:' + LV.at(i)] === 'have') my = Math.max(my, i);
+    const ok = my >= LV.indexOf(j.edu.poziom);
+    if (j.edu.kierunek) {
+      const st = userSkills['EDUK:' + j.edu.kierunek];
+      if (!(ok && (st === 'have' || st === 'learn'))) missing.push('Wykształcenie: ' + j.edu.kierunek);
+    } else if (!ok) missing.push('Wykształcenie ' + j.edu.poziom);
+  }
+  for (const e of (j.exp || [])) {
+    const st = userSkills['EXP:' + e.dz];
+    if (st !== 'have' && st !== 'learn') missing.push('Doświadczenie: ' + e.dz);
+  }
+  return { blocked, missing };
+}
+
+app.post('/api/advise', (req, res) => {
+  const userSkills = (req.body && req.body.skills) || {};
+  if (!Object.keys(userSkills).length) {
+    return res.json({ more: [], pay: [], obecnieMax: 0 });
+  }
+  const moreCount = {};
+  const candidates = [];
+  let userMax = 0;
+  for (const j of DATA.jobs) {
+    const r = missingItems(j, userSkills);
+    if (r.blocked) continue;
+    if (!r.missing.length) {
+      if (j.salary) userMax = Math.max(userMax, salaryNum(j.salary));
+      continue;
+    }
+    if (r.missing.length === 1) {
+      const m = r.missing.at(0);
+      moreCount[m] = (moreCount[m] || 0) + 1;
+      if (j.salary) candidates.push({ m, val: salaryNum(j.salary), salary: j.salary, title: j.title });
+    }
+  }
+  const more = Object.entries(moreCount).sort((a, b) => b.at(1) - a.at(1)).slice(0, 5)
+    .map(p => ({ co: p.at(0), ofert: p.at(1) }));
+  const payBest = {};
+  for (const c of candidates) {
+    if (c.val > userMax && (!payBest[c.m] || c.val > payBest[c.m].val)) payBest[c.m] = c;
+  }
+  const pay = Object.entries(payBest).sort((a, b) => b.at(1).val - a.at(1).val).slice(0, 5)
+    .map(p => ({ co: p.at(0), stawka: p.at(1).salary, tytul: p.at(1).title }));
+  res.json({ more, pay, obecnieMax: userMax });
 });
 
 /* ---------- START ---------- */
