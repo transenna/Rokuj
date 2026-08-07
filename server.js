@@ -651,7 +651,13 @@ async function syncAll() {
         url: r.url,
         skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => groupName(s.k)).filter(g => g !== '__ODRZUC__'))) : detectSkills(r.text, []),
         skillsOrig: r.ai ? r.ai.skills.map(s => ({ o: s.o, k: groupName(s.k) })).filter(t => t.k !== '__ODRZUC__') : [],
-        edu: (r.ai && r.ai.edu) ? { poziom: r.ai.edu.poziom, kierunek: r.ai.edu.kierunek ? eduDirName(r.ai.edu.kierunek) : null } : null,
+        edu: (r.ai && r.ai.edu) ? { poziom: r.ai.edu.poziom, kierunek: (function(){
+          let k = r.ai.edu.kierunek ? eduDirName(r.ai.edu.kierunek) : null;
+          const BAD = ['__ODRZUC__', 'null', 'techniczne', 'technika', 'inżynieria',
+            'kierunkowe', 'zawodowe', 'wyższe', 'średnie', 'ogólnokształcące', 'branżowe', 'dowolne'];
+          if (k && BAD.includes(k)) k = null;
+          return k;
+        })() } : null,
         age: r.age,
         posted: new Date(now - (r.age || 0) * 86400000).toISOString(),
         salary: r.salary || (r.ai && r.ai.salary) || null,
