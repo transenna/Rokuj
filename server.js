@@ -653,9 +653,21 @@ async function syncAll() {
         skillsOrig: r.ai ? r.ai.skills.map(s => ({ o: s.o, k: groupName(s.k) })).filter(t => t.k !== '__ODRZUC__') : [],
         edu: (r.ai && r.ai.edu) ? { poziom: r.ai.edu.poziom, kierunek: (function(){
           let k = r.ai.edu.kierunek ? eduDirName(r.ai.edu.kierunek) : null;
-          const BAD = ['__ODRZUC__', 'null', 'techniczne', 'technika', 'inżynieria',
-            'kierunkowe', 'zawodowe', 'wyższe', 'średnie', 'ogólnokształcące', 'branżowe', 'dowolne'];
-          if (k && BAD.includes(k)) k = null;
+          if (!k) return null;
+          const FIX = {
+            'prawnicze': 'prawo', 'prawne': 'prawo',
+            'techniczne': null, 'technika': null, 'inżynieria': null,
+            'medyczne': 'medycyna', 'pedagogiczne': 'pedagogika',
+            'mechaniczne': 'mechanika', 'elektryczne': 'elektrotechnika',
+            'ekonomiczne': 'ekonomia', 'handlowe': 'handel',
+            'gastronomiczne': 'gastronomia', 'budowlane': 'budownictwo',
+            'informatyczne': 'informatyka', 'chemiczne': 'chemia',
+            'rolnicze': 'rolnictwo', 'logistyczne': 'logistyka',
+            'null': null, 'kierunkowe': null, 'zawodowe': null, 'wyższe': null,
+            'średnie': null, 'ogólnokształcące': null, 'branżowe': null,
+            'dowolne': null, '__ODRZUC__': null,
+          };
+          if (Object.prototype.hasOwnProperty.call(FIX, k)) k = FIX[k];
           return k;
         })() } : null,
         age: r.age,
