@@ -654,22 +654,35 @@ async function syncAll() {
         edu: (r.ai && r.ai.edu) ? { poziom: r.ai.edu.poziom, kierunek: (function(){
           let k = r.ai.edu.kierunek ? eduDirName(r.ai.edu.kierunek) : null;
           if (!k) return null;
+          /* zlepki: wez pierwszy czlon ("filologia, pedagogika" -> "filologia") */
+          k = k.split(/,|\/|;| lub /).at(0).trim();
           const FIX = {
-            'prawnicze': 'prawo', 'prawne': 'prawo',
-            'techniczne': null, 'technika': null, 'inżynieria': null,
+            'prawnicze': 'prawo', 'prawny': 'prawo', 'prawne': 'prawo',
             'medyczne': 'medycyna', 'pedagogiczne': 'pedagogika',
             'mechaniczne': 'mechanika', 'elektryczne': 'elektrotechnika',
-            'ekonomiczne': 'ekonomia', 'handlowe': 'handel',
-            'gastronomiczne': 'gastronomia', 'budowlane': 'budownictwo',
-            'informatyczne': 'informatyka', 'chemiczne': 'chemia',
-            'rolnicze': 'rolnictwo', 'logistyczne': 'logistyka',
+            'elektroniczne': 'elektronika', 'ekonomiczne': 'ekonomia',
+            'handlowe': 'handel', 'gastronomiczne': 'gastronomia',
+            'budowlane': 'budownictwo', 'informatyczne': 'informatyka',
+            'chemiczne': 'chemia', 'rolnicze': 'rolnictwo',
+            'logistyczne': 'logistyka', 'farmaceutyczne': 'farmacja',
+            'lotnicze': 'lotnictwo', 'inż. budownictwa': 'budownictwo',
+            'nauczanie': 'pedagogika', 'szkolnictwo': 'pedagogika',
+            'edukacja': 'pedagogika', 'bhp': 'bezpieczeństwo i higiena pracy',
+            'ślusarz': 'ślusarstwo', 'sprzedawca': 'handel',
+            'szwaczka maszynowa': 'krawiectwo',
+            'techniczne': null, 'technika': null, 'techniki': null,
+            'technologia': null, 'technologie': null, 'politechniczne': null,
+            'inżynieria': null, 'przemysł': null, 'produkcja': null,
             'null': null, 'kierunkowe': null, 'zawodowe': null, 'wyższe': null,
-            'średnie': null, 'ogólnokształcące': null, 'branżowe': null,
-            'dowolne': null, '__ODRZUC__': null,
+            'średnie': null, 'ogólnokształcące': null, 'branżowe': null, 'dowolne': null,
+            '__ODRZUC__': null,
           };
           if (Object.prototype.hasOwnProperty.call(FIX, k)) k = FIX[k];
+          /* za krotkie/za dlugie = smiec (np. nazwy stanowisk) */
+          if (k && (k.length < 4 || k.length > 28)) k = null;
           return k;
         })() } : null,
+
         age: r.age,
         posted: new Date(now - (r.age || 0) * 86400000).toISOString(),
         salary: r.salary || (r.ai && r.ai.salary) || null,
