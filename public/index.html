@@ -202,7 +202,7 @@ footer a{color:#9CA3AF;}
         <svg class="ic" viewBox="0 0 24 24"><path d="M12 2v20M17 6H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg>
         z zarobkami
       </button>
-      <button id="btnAdvise">💡 Co mi doradzisz?</button>
+      <button id="btnAdvise">💡 Co mi podpowiesz?</button>
       <span class="range-wrap">
         min. rokowanie
         <input id="fScore" type="range" min="0" max="100" step="5" value="0">
@@ -234,170 +234,41 @@ footer a{color:#9CA3AF;}
 
 
 <script>
-let JOBS = [];
-let CATEGORIES = {};
-let userSkills = {};
-let openCats = {};
-let remoteOnly = false;
-let salaryOnly = false;
-
-/* zamienia napis "5 000 - 7 000 zł/godz." na liczbe do sortowania (w przyblizeniu miesiecznie) */
-function salaryNum(s){
-  if(!s) return 0;
-  const t = String(s).replace(/[\s\u00A0\u202F]/g, '');
-  const m = t.match(/\d+/g);
-  if(!m) return 0;
-  let n = Math.max.apply(null, m.map(Number));
-   if(/godz|hour/i.test(s)) n *= 168;
-  else if(/tydz|week/i.test(s)) n *= 4.33;
-  else if(/rok|year|annum/i.test(s)) n = Math.round(n / 12);
-  return n;
-}
+let META = { cats:{}, portals:{}, eduDirs:{}, expDoms:{}, total:0 };
+let userSkills = {}, openCats = {};
+let remoteOnly = false, salaryOnly = false, sortDir = 'desc';
+let page = 0, shown = 0, lastTotal = 0, adviseOpen = false;
 
 const ICON_HAVE  = '<svg class="ic" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></svg>';
 const ICON_LEARN = '<svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
 const ICON_NEVER = '<svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const ICON_GO    = '<svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 
-function saveProfile(){
-  localStorage.setItem('rokujProfile', JSON.stringify(userSkills));
-}
+function saveProfile(){ localStorage.setItem('rokujProfile', JSON.stringify(userSkills)); }
 function loadProfile(){
-  try{
-    const raw = localStorage.getItem('rokujProfile');
-    if(raw) userSkills = JSON.parse(raw) || {};
-  }catch(e){ userSkills = {}; }
+  try{ const raw = localStorage.getItem('rokujProfile'); if(raw) userSkills = JSON.parse(raw) || {}; }
+  catch(e){ userSkills = {}; }
 }
-
 function esc(s){
   return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
-    if(c === '&') return '&amp;';
-    if(c === '<') return '&lt;';
-    if(c === '>') return '&gt;';
-    if(c === '"') return '&quot;';
-    return '&#39;';
+    if(c === '&') return '&amp;'; if(c === '<') return '&lt;'; if(c === '>') return '&gt;';
+    if(c === '"') return '&quot;'; return '&#39;';
   });
 }
 
 async function load(){
   loadProfile();
   try{
-    const respSkills = await fetch('/api/skills');
-    CATEGORIES = await respSkills.json();
-    const respJobs = await fetch('/api/jobs');
-    JOBS = await respJobs.json();
+    META = await (await fetch('/api/meta')).json();
   }catch(e){
-    document.getElementById('jobs').innerHTML =
-      '<div class="empty">Nie udało się pobrać ofert. Odśwież stronę za chwilę.</div>';
+    document.getElementById('jobs').innerHTML = '<div class="empty">Nie udało się pobrać danych. Odśwież stronę.</div>';
     return;
   }
-  const portals = Array.from(new Set(JOBS.map(function(j){ return j.portal; }))).sort();
   let opts = '<option value="">Wszystkie portale</option>';
-  for(const p of portals){ opts += '<option>' + esc(p) + '</option>'; }
+  for(const p of Object.keys(META.portals).sort()){ opts += '<option>' + esc(p) + '</option>'; }
   document.getElementById('fPortal').innerHTML = opts;
   renderSkills();
-  renderJobs();
-}
-function buildEduHtml(){
-  const LEVELS = ['podstawowe', 'zawodowe', 'średnie', 'wyższe'];
-  const dirFreq = {};
-  for(const j of JOBS){
-    if(j.edu && j.edu.kierunek) dirFreq[j.edu.kierunek] = (dirFreq[j.edu.kierunek] || 0) + 1;
-  }
-  const dirs = Object.keys(dirFreq).sort(function(a, b){ return a.localeCompare(b, 'pl'); }).slice(0, 40);
-  let marked = 0, inner = '';
-  inner += '<div class="skill-row"><span><b>Poziom (zaznacz najwyższy, jaki masz)</b></span></div>';
-  for(const l of LEVELS){
-    const key = 'EDU:' + l; const st = userSkills[key] || ''; if(st) marked++;
-    inner += '<div class="skill-row sub-item" data-skill="' + key + '"><span>Wykształcenie ' + l + '</span>' + toggleHtml(st) + '</div>';
-  }
-  if(dirs.length){
-    inner += '<div class="skill-row"><span><b>Kierunek (jeśli masz kierunkowe)</b></span></div>';
-    for(const d of dirs){
-      const key = 'EDUK:' + d; const st = userSkills[key] || ''; if(st) marked++;
-      inner += '<div class="skill-row sub-item" data-skill="' + key + '"><span>' + esc(d) + '</span>' + toggleHtml(st) + '</div>';
-    }
-  }
-  return '<details ' + (openCats['__EDU__'] ? 'open' : '') + ' data-cat="__EDU__"><summary>Wykształcenie' +
-    (marked ? '<span class="cat-count">' + marked + '</span>' : '') + '</summary>' + inner + '</details>';
-}
-
-function renderSkills(){
-  /* kolejnosc kategorii: wg liczby ofert; uniwersalne i wymogi na koncu */
-  const NA_KONCU = ['Języki obce', 'Wymogi formalne i inne', 'Kompetencje uniwersalne'];
-  const catCount = {};
-  for(const j of JOBS){
-    for(const s of (j.skills || [])) catCount[s] = (catCount[s] || 0) + 1;
-  }
-  function catWeight(cat){
-    let n = 0;
-    for(const sub of Object.keys(CATEGORIES[cat] || {})){
-      for(const s of CATEGORIES[cat][sub]) n += (catCount[s] || 0);
-    }
-    return n;
-  }
-  const catNames = Object.keys(CATEGORIES).sort(function(a, b){
-    const ea = NA_KONCU.indexOf(a), eb = NA_KONCU.indexOf(b);
-    if(ea !== -1 || eb !== -1) return (ea === -1 ? -1 : (eb === -1 ? 1 : ea - eb));
-    return catWeight(b) - catWeight(a);
-  });
-
-  let html = '';
-  for(const cat of catNames){
-    const subs = CATEGORIES[cat];
-    let markedInCat = 0, anyVisible = false, subHtml = '';
-    for(const sub of Object.keys(subs)){
-      const items = subs[sub];
-      if(!items.length) continue;
-      anyVisible = true;
-      const marked = items.filter(function(s){ return userSkills[s]; }).length;
-      markedInCat += marked;
-      /* stan zbiorczy podkategorii: jesli WSZYSTKIE dzieci maja ten sam stan, pokaz go */
-      let subState = '';
-      if(items.length && userSkills[items.at(0)]){
-        const st = userSkills[items.at(0)];
-        if(items.every(function(s){ return userSkills[s] === st; })) subState = st;
-      }
-      const singleItem = (items.length === 1 && items.at(0) === sub);
-      if(singleItem){
-        /* podkategoria = jedna pozycja o tej samej nazwie: pokaz plasko */
-        const st = userSkills[items.at(0)] || '';
-        subHtml += '<div class="skill-row" data-skill="' + esc(items.at(0)) + '">' +
-          '<span>' + esc(items.at(0)) + '</span>' + toggleHtml(st) + '</div>';
-        continue;
-      }
-      subHtml += '<div class="subcat"><div class="skill-row subcat-head" data-sub="' + esc(cat) + '||' + esc(sub) + '">' +
-        '<span><b>' + esc(sub) + '</b>' + (marked ? ' <span class="cat-count">' + marked + '</span>' : '') + '</span>' +
-        toggleHtml(subState) + '</div>';
-      for(const s of items){
-        const st = userSkills[s] || '';
-        subHtml += '<div class="skill-row sub-item" data-skill="' + esc(s) + '">' +
-          '<span>' + esc(s) + '</span>' + toggleHtml(st) + '</div>';
-      }
-      subHtml += '</div>';
-    }
-    if(!anyVisible) continue;
-    html += '<details ' + (openCats[cat] ? 'open' : '') + ' data-cat="' + esc(cat) + '">' +
-      '<summary>' + esc(cat) +
-      (markedInCat ? '<span class="cat-count">' + markedInCat + '</span>' : '') +
-      '</summary>' + subHtml + '</details>';
-  }
-     html += buildEduHtml();
-  const box = document.getElementById('skills');
-  box.innerHTML = html;
-   const detailsList = box.querySelectorAll('details');
-  for(const d of detailsList){
-    d.addEventListener('toggle', function(){
-      openCats[d.dataset.cat] = d.open;
-    if(d.open){
-        for(const other of detailsList){
-          if(other !== d && other.open){ other.open = false; openCats[other.dataset.cat] = false; }
-        }
-        d.scrollIntoView({block:'nearest'});
-      }
-
-    });
-  }
+  doSearch(true);
 }
 
 function toggleHtml(st){
@@ -408,150 +279,235 @@ function toggleHtml(st){
     '</span>';
 }
 
+function specialSection(id, title, rows){
+  let marked = 0, inner = '';
+  for(const r of rows){
+    if(r.head){ inner += '<div class="skill-row"><span><b>' + esc(r.head) + '</b></span></div>'; continue; }
+    const st = userSkills[r.key] || ''; if(st) marked++;
+    inner += '<div class="skill-row sub-item" data-skill="' + esc(r.key) + '"><span>' + esc(r.label) + '</span>' + toggleHtml(st) + '</div>';
+  }
+  return '<details ' + (openCats[id] ? 'open' : '') + ' data-cat="' + id + '"><summary>' + esc(title) +
+    (marked ? '<span class="cat-count">' + marked + '</span>' : '') + '</summary>' + inner + '</details>';
+}
+
+function buildEduHtml(){
+  const rows = [{ head:'Poziom (zaznacz najwyższy, jaki masz)' }];
+  for(const l of ['podstawowe','zawodowe','średnie','wyższe']) rows.push({ key:'EDU:'+l, label:'Wykształcenie '+l });
+  const dirs = Object.keys(META.eduDirs).sort(function(a,b){ return a.localeCompare(b,'pl'); });
+  if(dirs.length){ rows.push({ head:'Kierunek (jeśli masz kierunkowe)' });
+    for(const d of dirs) rows.push({ key:'EDUK:'+d, label:d }); }
+  return specialSection('__EDU__', 'Wykształcenie', rows);
+}
+function buildExpHtml(){
+  const doms = Object.keys(META.expDoms).sort(function(a,b){ return a.localeCompare(b,'pl'); });
+  if(!doms.length) return '';
+  const rows = [{ head:'W czym masz doświadczenie?' }];
+  for(const d of doms) rows.push({ key:'EXP:'+d, label:d });
+  return specialSection('__EXP__', 'Doświadczenie zawodowe', rows);
+}
+
+function renderSkills(){
+  const NA_KONCU = ['Języki obce', 'Wymogi formalne i inne', 'Kompetencje uniwersalne'];
+  function catWeight(cat){
+    let n = 0;
+    for(const sub of Object.keys(META.cats[cat] || {})) n += META.cats[cat][sub].length;
+    return n;
+  }
+  const catNames = Object.keys(META.cats).sort(function(a, b){
+    const ea = NA_KONCU.indexOf(a), eb = NA_KONCU.indexOf(b);
+    if(ea !== -1 || eb !== -1) return (ea === -1 ? -1 : (eb === -1 ? 1 : ea - eb));
+    return catWeight(b) - catWeight(a);
+  });
+  let html = '';
+  for(const cat of catNames){
+    const subs = META.cats[cat];
+    let markedInCat = 0, anyVisible = false, subHtml = '';
+    for(const sub of Object.keys(subs)){
+      const items = subs[sub];
+      if(!items.length) continue;
+      anyVisible = true;
+      const marked = items.filter(function(s){ return userSkills[s]; }).length;
+      markedInCat += marked;
+      let subState = '';
+      if(items.length && userSkills[items.at(0)]){
+        const st = userSkills[items.at(0)];
+        if(items.every(function(s){ return userSkills[s] === st; })) subState = st;
+      }
+      if(items.length === 1 && items.at(0) === sub){
+        const st = userSkills[items.at(0)] || '';
+        subHtml += '<div class="skill-row" data-skill="' + esc(items.at(0)) + '"><span>' + esc(items.at(0)) + '</span>' + toggleHtml(st) + '</div>';
+        continue;
+      }
+      subHtml += '<div class="subcat"><div class="skill-row subcat-head" data-sub="' + esc(cat) + '||' + esc(sub) + '">' +
+        '<span><b>' + esc(sub) + '</b>' + (marked ? ' <span class="cat-count">' + marked + '</span>' : '') + '</span>' +
+        toggleHtml(subState) + '</div>';
+      for(const s of items){
+        subHtml += '<div class="skill-row sub-item" data-skill="' + esc(s) + '"><span>' + esc(s) + '</span>' + toggleHtml(userSkills[s] || '') + '</div>';
+      }
+      subHtml += '</div>';
+    }
+    if(!anyVisible) continue;
+    html += '<details ' + (openCats[cat] ? 'open' : '') + ' data-cat="' + esc(cat) + '"><summary>' + esc(cat) +
+      (markedInCat ? '<span class="cat-count">' + markedInCat + '</span>' : '') + '</summary>' + subHtml + '</details>';
+  }
+  html += buildExpHtml();
+  html += buildEduHtml();
+  const box = document.getElementById('skills');
+  box.innerHTML = html;
+  const detailsList = box.querySelectorAll('details');
+  for(const d of detailsList){
+    d.addEventListener('toggle', function(){
+      openCats[d.dataset.cat] = d.open;
+      if(d.open){
+        for(const other of detailsList){
+          if(other !== d && other.open){ other.open = false; openCats[other.dataset.cat] = false; }
+        }
+        d.scrollIntoView({block:'nearest'});
+      }
+    });
+  }
+}
+
 function setS(skill, state){
   if(userSkills[skill] === state) delete userSkills[skill];
   else userSkills[skill] = state;
-  saveProfile();
-  renderSkills();
-  renderJobs();
+  saveProfile(); renderSkills(); doSearch(true);
 }
-
 document.getElementById('btnReset').addEventListener('click', function(){
   if(!confirm('Na pewno wyczyścić wszystkie oznaczenia kompetencji?')) return;
-  userSkills = {};
-  saveProfile();
-  renderSkills();
-  renderJobs();
+  userSkills = {}; saveProfile(); renderSkills(); doSearch(true);
 });
-
 document.getElementById('skills').addEventListener('click', function(e){
   const btn = e.target.closest('button[data-state]');
   if(!btn) return;
   const head = btn.closest('.subcat-head');
   if(head){
-    /* klik zbiorczy: ustaw stan wszystkim pozycjom podkategorii */
     const parts = head.dataset.sub.split('||');
-    const items = (CATEGORIES[parts.at(0)] || {})[parts.at(1)] || [];
+    const items = (META.cats[parts.at(0)] || {})[parts.at(1)] || [];
     const st = btn.dataset.state;
     const allSame = items.every(function(s){ return userSkills[s] === st; });
-    for(const s of items){
-      if(allSame) delete userSkills[s];
-      else userSkills[s] = st;
-    }
-    saveProfile(); renderSkills(); renderJobs();
+    for(const s of items){ if(allSame) delete userSkills[s]; else userSkills[s] = st; }
+    saveProfile(); renderSkills(); doSearch(true);
     return;
   }
   const row = btn.closest('.skill-row');
   if(row && row.dataset.skill) setS(row.dataset.skill, btn.dataset.state);
 });
 
-
-  function ageText(age){
+function ageText(age){
   if(age == null) return '';
   if(age === 0) return 'dzisiaj';
   if(age === 1) return 'wczoraj';
   return age + ' dni temu';
 }
 
-function renderJobs(){
-  const q        = document.getElementById('fSearch').value.toLowerCase().trim();
-  const loc      = document.getElementById('fLocation').value.toLowerCase().trim();
-  const portal   = document.getElementById('fPortal').value;
-  const sortBy   = document.getElementById('fSort').value;
-  const minScore = parseInt(document.getElementById('fScore').value, 10);
-
-  const results = [];
-  for(const j of JOBS){
-    const sk = j.skills || [];
-    let have = 0, learn = 0, blocked = false;
-    for(const s of sk){
-      if(userSkills[s] === 'never') blocked = true;
-      else if(userSkills[s] === 'have') have += 1;
-      else if(userSkills[s] === 'learn') learn += 1;
-    }
-    if(blocked) continue;
-    const score = sk.length ? Math.round((have + learn * 0.5) / sk.length * 100) : 0;
-
-    const hay = ((j.title || '') + ' ' + (j.company || '')).toLowerCase();
-    if(q && hay.indexOf(q) === -1) continue;
-    if(loc && (j.location || '').toLowerCase().indexOf(loc) === -1) continue;
-    if(remoteOnly && !j.remote) continue;
-    if(salaryOnly && !j.salary) continue;
-    if(portal && j.portal !== portal) continue;
-    if(score < minScore) continue;
-
-    results.push({ j: j, score: score });
-  }
-
-  results.sort(function(a, b){
-    if(sortBy === 'title') return a.j.title.localeCompare(b.j.title, 'pl');
-         if(sortBy === 'salary') return salaryNum(b.j.salary) - salaryNum(a.j.salary);
-    return b.score - a.score;
-  });
-
-  document.getElementById('stats').textContent =
-    'Znaleziono ' + results.length + ' z ' + JOBS.length + ' ofert';
-
-  const box = document.getElementById('jobs');
-  if(!results.length){
-    box.innerHTML = JOBS.length
-      ? '<div class="empty">Brak pasujących ofert.<br>Poluzuj filtry lub zmień ustawienia kompetencji.</div>'
-      : '<div class="empty">Portal w przygotowaniu – trwa integracja źródeł ofert.<br>Zapraszamy wkrótce!</div>';
-    return;
-  }
-
+async function doSearch(reset){
+  if(reset){ page = 0; shown = 0; }
+  const body = {
+    q: document.getElementById('fSearch').value,
+    loc: document.getElementById('fLocation').value,
+    portal: document.getElementById('fPortal').value,
+    sort: document.getElementById('fSort').value,
+    dir: sortDir,
+    minScore: parseInt(document.getElementById('fScore').value, 10),
+    remote: remoteOnly, salaryOnly: salaryOnly,
+    skills: userSkills, page: page, size: 50,
+  };
+  let data;
+  try{
+    data = await (await fetch('/api/search', { method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })).json();
+  }catch(e){ return; }
+  lastTotal = data.total;
+  document.getElementById('stats').textContent = 'Znaleziono ' + data.total + ' z ' + META.total + ' ofert';
   let html = '';
-  for(const r of results){
-    const cls = r.score >= 70 ? 'high' : (r.score >= 40 ? 'mid' : 'low');
+  for(const j of data.jobs){
+    const cls = j.score >= 70 ? 'high' : (j.score >= 40 ? 'mid' : 'low');
     let tags = '';
-    const origs = (r.j.skillsOrig && r.j.skillsOrig.length)
-      ? r.j.skillsOrig
-      : (r.j.skills || []).map(function(s){ return { o: s, k: s }; });
+    const origs = (j.skillsOrig && j.skillsOrig.length) ? j.skillsOrig : (j.skills || []).map(function(s){ return { o:s, k:s }; });
     for(const t of origs){
       tags += '<span class="tag ' + (userSkills[t.k] || '') + '" title="liczy się jako: ' + esc(t.k) + '">' + esc(t.o) + '</span>';
     }
-
     let meta = '';
-    if(r.j.company){ meta += '<span>' + esc(r.j.company) + '</span><span class="dot"></span>'; }
-    meta += '<span>' + esc(r.j.location || 'lokalizacja nieznana') + '</span>';
-    if(r.j.remote){ meta += '<span class="dot"></span><span>zdalnie</span>'; }
-    if(r.j.age != null){
-      meta += '<span class="dot"></span><span>' + ageText(r.j.age) + '</span>';
-    }
-    meta += '<span class="dot"></span><span class="badge">' + esc(r.j.portal) + '</span>';
-
+    if(j.company){ meta += '<span>' + esc(j.company) + '</span><span class="dot"></span>'; }
+    meta += '<span>' + esc(j.location || 'lokalizacja nieznana') + '</span>';
+    if(j.remote){ meta += '<span class="dot"></span><span>zdalnie</span>'; }
+    if(j.salary){ meta += '<span class="dot"></span><span class="salary">' + esc(j.salary) + '</span>'; }
+    if(j.age != null){ meta += '<span class="dot"></span><span>' + ageText(j.age) + '</span>'; }
+    meta += '<span class="dot"></span><span class="badge">' + esc(j.portal) + '</span>';
     html += '<div class="job ' + cls + '">' +
-      '<span class="match ' + cls + '" title="Rokowanie to poglądowa symulacja dopasowania Twoich oznaczeń do treści ogłoszenia. Nie jest obietnicą ani gwarancją zatrudnienia.">Rokujesz na ' + r.score + '%</span>' +
-      '<h3>' + esc(r.j.title) + '</h3>' +
-      '<div class="meta">' + meta + '</div>' +
-      '<div>' + tags + '</div>' +
-      '<a class="more" href="' + esc(r.j.url) + '" target="_blank" rel="noopener">Zobacz ofertę ' + ICON_GO + '</a>' +
-      '</div>';
+      '<span class="match ' + cls + '" title="Rokowanie to poglądowa symulacja dopasowania Twoich oznaczeń do treści ogłoszenia. Nie jest obietnicą ani gwarancją zatrudnienia.">Rokujesz na ' + j.score + '%</span>' +
+      '<h3>' + esc(j.title) + '</h3><div class="meta">' + meta + '</div><div>' + tags + '</div>' +
+      '<a class="more" href="' + esc(j.url) + '" target="_blank" rel="noopener">Zobacz ofertę ' + ICON_GO + '</a></div>';
   }
-  box.innerHTML = html;
+  const box = document.getElementById('jobs');
+  if(reset) box.innerHTML = html;
+  else box.insertAdjacentHTML('beforeend', html);
+  shown += data.jobs.length;
+  if(reset && !data.total){
+    box.innerHTML = META.total
+      ? '<div class="empty">Brak pasujących ofert.<br>Poluzuj filtry lub zmień ustawienia kompetencji.</div>'
+      : '<div class="empty">Portal w przygotowaniu – trwa integracja źródeł ofert.<br>Zapraszamy wkrótce!</div>';
+  }
+  document.getElementById('moreWrap').innerHTML = (shown < lastTotal)
+    ? '<button id="btnMore">Pokaż więcej (' + (lastTotal - shown) + ')</button>' : '';
+  const more = document.getElementById('btnMore');
+  if(more) more.addEventListener('click', function(){ page += 1; doSearch(false); });
 }
+
+async function doAdvise(){
+  const box = document.getElementById('advise');
+  if(adviseOpen){ box.innerHTML = ''; adviseOpen = false; return; }
+  if(!Object.keys(userSkills).length){
+    box.innerHTML = '<div class="advise-box">Najpierw oznacz swoje kompetencje w panelu po lewej – wtedy będzie co podpowiadać. 😊</div>';
+    adviseOpen = true; return;
+  }
+  let d;
+  try{
+    d = await (await fetch('/api/advise', { method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify({ skills: userSkills }) })).json();
+  }catch(e){ return; }
+  let html = '<div class="advise-box"><h3>💡 Co możesz zyskać</h3>';
+  if(d.more.length){
+    html += '<b>Więcej ofert w zasięgu:</b><ul>';
+    for(const m of d.more) html += '<li>Zdobądź: <b>' + esc(m.co) + '</b> → osiągniesz 100% w <b>' + m.ofert + '</b> ofertach</li>';
+    html += '</ul>';
+  }
+  if(d.pay.length){
+    html += '<b>Lepsze zarobki</b> (wśród ofert z podanym wynagrodzeniem):<ul>';
+    for(const p of d.pay) html += '<li>Zdobądź: <b>' + esc(p.co) + '</b> → w zasięgu m.in. „' + esc(p.tytul) + '" (' + esc(p.stawka) + ')</li>';
+    html += '</ul>';
+  }
+  if(!d.more.length && !d.pay.length) html += 'Świetnie! Nie znaleźliśmy pojedynczej kompetencji, która wyraźnie zwiększyłaby Twoje możliwości. Spróbuj oznaczyć więcej kompetencji.';
+  html += '<div style="color:#9CA3AF;font-size:.78rem;margin-top:8px;">Wyliczenia mają charakter poglądowy – nie stanowią obietnicy zatrudnienia.</div></div>';
+  box.innerHTML = html; adviseOpen = true;
+}
+document.getElementById('btnAdvise').addEventListener('click', doAdvise);
 
 let debTimer = null;
-function debouncedRender(){
-  clearTimeout(debTimer);
-  debTimer = setTimeout(renderJobs, 150);
-}
-document.getElementById('fSearch').addEventListener('input', debouncedRender);
-document.getElementById('fLocation').addEventListener('input', debouncedRender);
-document.getElementById('fPortal').addEventListener('change', renderJobs);
-document.getElementById('fSort').addEventListener('change', renderJobs);
+function debouncedSearch(){ clearTimeout(debTimer); debTimer = setTimeout(function(){ doSearch(true); }, 250); }
+document.getElementById('fSearch').addEventListener('input', debouncedSearch);
+document.getElementById('fLocation').addEventListener('input', debouncedSearch);
+document.getElementById('fPortal').addEventListener('change', function(){ doSearch(true); });
+document.getElementById('fSort').addEventListener('change', function(){ doSearch(true); });
+document.getElementById('fDir').addEventListener('click', function(){
+  sortDir = (sortDir === 'desc') ? 'asc' : 'desc';
+  this.textContent = (sortDir === 'desc') ? '↓' : '↑';
+  doSearch(true);
+});
 document.getElementById('fScore').addEventListener('input', function(){
-  document.getElementById('fScoreVal').textContent =
-    document.getElementById('fScore').value + '%';
-  renderJobs();
+  document.getElementById('fScoreVal').textContent = this.value + '%';
+  debouncedSearch();
 });
 document.getElementById('fRemote').addEventListener('click', function(){
-  remoteOnly = !remoteOnly;
-  document.getElementById('fRemote').classList.toggle('on', remoteOnly);
-  renderJobs();
+  remoteOnly = !remoteOnly; this.classList.toggle('on', remoteOnly); doSearch(true);
+});
+document.getElementById('fSalaryOnly').addEventListener('click', function(){
+  salaryOnly = !salaryOnly; this.classList.toggle('on', salaryOnly); doSearch(true);
 });
 
 load();
 </script>
+
 </body>
 </html>
