@@ -515,13 +515,17 @@ app.post('/api/search', (req, res) => {
     if (loc && !(j.location || '').toLowerCase().includes(loc)) continue;
     if (b.portal && j.portal !== b.portal) continue;
     if (b.remote && !j.remote) continue;
+    if (b.salaryOnly && !j.salary) continue;
     const score = scoreJob(j, userSkills);
     if (score < 0) continue;
     if (b.minScore && score < b.minScore) continue;
     out.push({ j, score });
   }
-  if (b.sort === 'title') out.sort((a, x) => a.j.title.localeCompare(x.j.title, 'pl'));
-  else out.sort((a, x) => x.score - a.score);
+  const dir = (b.dir === 'asc') ? 1 : -1;
+  if (b.sort === 'title') out.sort((a, x) => dir * a.j.title.localeCompare(x.j.title, 'pl') * -1);
+  else if (b.sort === 'salary') out.sort((a, x) => dir * (salaryNum(x.j.salary) - salaryNum(a.j.salary)));
+  else out.sort((a, x) => dir * (x.score - a.score));
+
   const items = out.slice(page * size, (page + 1) * size)
     .map(r => Object.assign({ score: r.score }, r.j));
   res.json({ total: out.length, page, size, jobs: items });
