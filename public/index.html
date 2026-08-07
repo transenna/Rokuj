@@ -110,6 +110,17 @@ input:focus,select:focus{outline:2px solid var(--accent-soft);border-color:var(-
 input[type=range]{accent-color:var(--accent);padding:0;border:none;}
 #stats{color:var(--ink-soft);font-size:.86rem;margin:0 4px 12px;}
 
+   #fDir,#btnAdvise{border:1px solid var(--line);background:var(--card);border-radius:10px;
+  padding:9px 14px;cursor:pointer;font-size:.9rem;color:var(--ink-soft);font-family:inherit;}
+#fDir:hover,#btnAdvise:hover{border-color:var(--accent);color:var(--accent);}
+.advise-box{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;margin-bottom:14px;font-size:.9rem;}
+.advise-box h3{margin:0 0 8px;font-size:1rem;}
+.advise-box li{margin:4px 0;}
+#btnMore{padding:10px 26px;border-radius:10px;border:1px solid var(--line);background:var(--card);
+  color:var(--accent);font-weight:600;cursor:pointer;font-size:.9rem;}
+#btnMore:hover{border-color:var(--accent);}
+
 .job{position:relative;background:var(--card);border:1px solid var(--line);
   border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;margin-bottom:14px;}
 .job h3{margin:2px 0 6px;font-size:1.06rem;}
@@ -178,21 +189,33 @@ footer a{color:#9CA3AF;}
       <select id="fSort">
         <option value="score">Sortuj: rokowanie</option>
         <option value="title">Sortuj: nazwa</option>
+        <option value="salary">Sortuj: zarobki</option>
       </select>
-      <button id="fRemote">
+      <button id="fDir" title="Zmień kierunek sortowania">↓</button>
+
+           <button id="fRemote">
         <svg class="ic" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7M5 9.5V20h14V9.5"/></svg>
         zdalnie
 
       </button>
+      <button id="fSalaryOnly">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 2v20M17 6H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg>
+        z zarobkami
+      </button>
+      <button id="btnAdvise">💡 Co mi doradzisz?</button>
       <span class="range-wrap">
         min. rokowanie
         <input id="fScore" type="range" min="0" max="100" step="5" value="0">
         <b id="fScoreVal">0%</b>
       </span>
+
     </div>
+        <div id="advise"></div>
     <p id="stats"></p>
     <div id="jobs"></div>
+    <div id="moreWrap" style="text-align:center;margin:10px 0 30px;"></div>
   </main>
+
 
 </div>
 
