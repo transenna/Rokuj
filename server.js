@@ -9,6 +9,7 @@ loadGroups();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '1mb' }));
 
 const ADZUNA_ID  = process.env.ADZUNA_APP_ID;
 const ADZUNA_KEY = process.env.ADZUNA_APP_KEY;
@@ -29,342 +30,6 @@ const SOURCES_ENABLED = {
 const PAUSE_MS = 400;          // grzeczna pauza miedzy zapytaniami
 const JOBS_FILE = path.join(__dirname, 'jobs.json');
 
-/* ---------- SLOWNIK BAZOWY ---------- */
-const SKILL_DEFS = {
-  'Kompetencje uniwersalne': {
-    'Kreatywność': ['kreatywn', 'twórcze podejście', 'twórczego podejścia', 'pomysłowoś'],
-    'Komunikatywność': ['komunikatywn', 'umiejętności komunikacyjne', 'łatwość nawiązywania'],
-    'Praca w zespole': ['w zespole', 'zespołow', 'współprac'],
-    'Samodzielność': ['samodzieln'],
-    'Dyspozycyjność': ['dyspozycyjn'],
-    'Odporność na stres': ['odporność na stres', 'odporności na stres', 'pod presją', 'ze stresem'],
-    'Zaangażowanie': ['zaangażowan', 'motywacj'],
-    'Dokładność i sumienność': ['dokładnoś', 'skrupulatn', 'sumiennoś', 'rzetelnoś', 'staranności', 'staranność'],
-    'Punktualność': ['punktualn'],
-    'Dobra organizacja pracy': ['organizacji pracy', 'organizacja pracy', 'organizacji czasu', 'zarządzanie czasem'],
-    'Wysoka kultura osobista': ['kultura osobista', 'kultury osobistej'],
-    'Umiejętności analityczne': ['analityczn'],
-    'Chęć do nauki i rozwoju': ['chęć do nauki', 'chęci do nauki', 'gotowość do nauki', 'szybkiego uczenia', 'chęć rozwoju', 'chęci rozwoju'],
-    'Obsługa komputera': ['obsługa komputera', 'obsługi komputera', 'znajomość komputera', 'komputerow'],
-    'Sprawność fizyczna': ['praca fizyczna', 'pracy fizycznej', 'sprawność fizyczna', 'sprawności fizycznej', 'dźwigani'],
-    'Gotowość do pracy zmianowej': ['zmianow', 'trzy zmiany', 'praca w nocy', 'nocne zmiany'],
-    'Niekaralność': ['niekaraln'],
-     'Język polski (dla obcokrajowców)': ['języka polskiego', 'język polski'],
- },
-  'Języki obce': {
-    'Język angielski': ['angielsk', 'english'],
-    'Język niemiecki': ['niemieck', 'german'],
-    'Język francuski': ['francusk'],
-    'Język hiszpański': ['hiszpańsk'],
-    'Język włoski': ['włosk'],
-    'Język ukraiński': ['ukraińsk'],
-    'Język rosyjski': ['rosyjsk'],
-    'Język czeski': ['czesk'],
-    'Język niderlandzki': ['niderlandzk', 'holendersk'],
-  },
-  'IT i programowanie': {
-    'Python': ['python'],
-    'JavaScript': ['javascript', 'react', 'node.js', 'vue', 'angular'],
-    'Java': [' java ', 'języka java', 'język java'],
-    'C#/.NET': ['c#', '.net'],
-    'PHP': ['php'],
-    'SQL i bazy danych': ['sql', 'baz danych', 'bazy danych'],
-    'Excel (zaawansowany)': ['excel'],
-    'Administracja sieciami': ['sieci komputerow', 'lan', 'vpn', 'windows server', 'linux'],
-    'Helpdesk / wsparcie IT': ['helpdesk', 'wsparcie it', 'wsparcia it', 'service desk'],
-    'Testowanie oprogramowania': ['tester', 'testowani', 'testów oprogramowania', 'qa'],
-    'DevOps / chmura': ['devops', 'docker', 'kubernetes', 'aws', 'azure'],
-    'Cyberbezpieczeństwo': ['cyberbezpiecze', 'bezpieczeństwa it', 'security'],
-  },
-  'Produkcja i technika': {
-    'Uprawnienia SEP (elektryczne)': ['sep', 'uprawnienia elektryczne', 'elektryk'],
-    'Wózek widłowy (UDT)': ['wózki widłowe', 'wózka widłowego', 'wózek widłowy', 'wózków widłowych', 'udt'],
-    'Spawanie (MAG/TIG/MMA)': ['spawacz', 'spawani', 'spawanie', 'spawalnicz'],
-    'Obsługa CNC': ['cnc'],
-    'Obróbka skrawaniem': ['tokarz', 'frezer', 'skrawani'],
-    'Czytanie rysunku technicznego': ['rysunku technicznego', 'rysunek techniczny', 'dokumentacji technicznej', 'schemat'],
-    'Obsługa maszyn produkcyjnych': ['maszyn produkcyjnych', 'linii produkcyjnej', 'operator produkcji', 'obsługa maszyn'],
-    'Montaż i serwis urządzeń': ['monter', 'montaż', 'montażu', 'serwisant', 'konserwator'],
-    'Automatyka przemysłowa': ['automatyk', 'plc', 'sterownik'],
-    'Kontrola jakości': ['kontrola jakości', 'kontroli jakości', 'kontroler jakości'],
-    'Elektronika': ['elektronik', 'lutowani'],
-    'Mechanika pojazdowa': ['mechanik samochodow', 'mechanika pojazdow', 'diagnost'],
-    'Lakiernictwo': ['lakiernik', 'lakierni'],
-    'Ślusarstwo': ['ślusarz', 'ślusarsk'],
-     'Obsługa suwnic': ['suwnic'],
-    'Obsługa elektronarzędzi': ['elektronarzędzi', 'elektronarzędz'],
-    'Narzędzia pomiarowe': ['narzędzi pomiarowych', 'suwmiark', 'mikrometr'],
-    'Obsługa maszyn drukujących': ['maszyn drukujących', 'drukarni', 'poligraf'],
- },
-  'Budownictwo': {
-    'Prace wykończeniowe': ['wykończeniow', 'glazurnik', 'malarz', 'tynkarz', 'szpachlowani', 'gipsow'],
-    'Murarstwo': ['murarz', 'murarsk'],
-    'Ciesielstwo i zbrojarstwo': ['cieśla', 'ciesielsk', 'zbrojarz', 'szalunk'],
-    'Dekarstwo': ['dekarz', 'dekarsk', 'pokryć dachowych'],
-    'Instalacje hydrauliczne': ['hydraulik', 'instalacje sanitarne', 'instalacji sanitarnych', 'wod-kan'],
-    'Instalacje elektryczne (budowlane)': ['instalacje elektryczne', 'instalacji elektrycznych', 'elektromonter'],
-    'Operator maszyn budowlanych': ['koparki', 'koparko-ładowark', 'operator maszyn budowlanych', 'ładowarki'],
-    'Brukarstwo': ['brukarz', 'brukarsk', 'kostki brukowej'],
-    'Prace na wysokości': ['na wysokości', 'alpinistyczn'],
-    'Stolarstwo': ['stolarz', 'stolarsk'],
-  },
-  'Transport i logistyka': {
-    'Prawo jazdy kat. B': ['kat. b', 'kat.b', 'kategorii b', 'prawo jazdy b', 'prawa jazdy b'],
-    'Prawo jazdy kat. C': ['kat. c', 'kat.c', 'kategorii c'],
-    'Prawo jazdy kat. C+E': ['c+e', 'ce '],
-    'Prawo jazdy kat. D': ['kat. d', 'kategorii d', 'autobus'],
-    'Karta kierowcy i tachograf': ['karta kierowcy', 'karty kierowcy', 'tachograf'],
-    'Przewóz rzeczy (kwalifikacja)': ['przewóz rzeczy', 'przewozu rzeczy', 'kwalifikacja wstępna', 'kod 95'],
-    'ADR (materiały niebezpieczne)': ['adr'],
-    'Gospodarka magazynowa': ['magazynier', 'magazynie', 'magazynow', 'wms', 'inwentaryzac'],
-    'Kompletacja zamówień': ['kompletacj', 'komisjonowani', 'pakowani'],
-    'Spedycja': ['spedytor', 'spedycj'],
-    'Kurier / dostawca': ['kurier', 'dostawca', 'dowóz', 'dostarczani'],
-  },
-  'Gastronomia i hotelarstwo': {
-    'Książeczka sanepidowska': ['sanepid', 'książeczka zdrowia', 'książeczkę sanepidowską', 'badania sanitarno'],
-    'Gotowanie / kuchnia': ['kucharz', 'kuchni', 'gotowani', 'przygotowywanie posiłków', 'przygotowywania posiłków'],
-    'Cukiernictwo i piekarstwo': ['cukiernik', 'cukierni', 'piekarz', 'piekarni', 'wypiek'],
-    'Pizzerman': ['pizzerman', 'pizzer', 'wypiek pizzy'],
-    'Obsługa kelnerska': ['kelner', 'kelnerk'],
-    'Barman / barista': ['barman', 'barist', 'przygotowywanie kawy'],
-    'Housekeeping': ['pokojow', 'housekeeping', 'sprzątanie pokoi'],
-    'Obsługa recepcji': ['recepcj'],
-    'Pomoc kuchenna': ['pomoc kuchenna', 'pomocy kuchennej', 'zmywak'],
-  },
-  'Medycyna i opieka': {
-    'PWZ pielęgniarki/położnej': ['pielęgniar', 'położn'],
-    'PWZ lekarza': ['lekarz', 'lekarsk'],
-    'Ratownictwo medyczne': ['ratownik medyczny', 'ratownictwa medycznego', 'kpp'],
-    'Opieka nad seniorami': ['opiekun osób starszych', 'opiekunka osób starszych', 'osób starszych', 'seniora', 'seniorów', 'opiekun medyczny'],
-    'Opieka nad dziećmi': ['opiekunka dziecięca', 'niania', 'opieka nad dziećmi', 'opieki nad dziećmi'],
-    'Fizjoterapia i masaż': ['fizjoterapeut', 'masażyst', 'rehabilitac'],
-    'Farmacja': ['farmaceut', 'technik farmaceutyczny', 'aptek'],
-    'Stomatologia': ['stomatolog', 'dentyst', 'higienistka stomatologiczna'],
-    'Weterynaria': ['weterynar'],
-    'Fryzjerstwo': ['fryzjer', 'strzyżeni'],
-    'Kosmetologia': ['kosmetyczk', 'kosmetolog', 'manicure', 'stylizacja paznokci', 'stylizacji paznokci'],
-  },
-  'Edukacja i szkolenia': {
-    'Nauczanie przedszkolne/wczesnoszkolne': ['przedszkol', 'wczesnoszkoln', 'wychowawc'],
-    'Nauczanie przedmiotowe': ['nauczyciel', 'nauczaniu', 'pedagogiczne'],
-    'Lektor języków': ['lektor', 'nauka języka', 'nauki języka'],
-    'Prowadzenie szkoleń': ['trener', 'szkoleniowiec', 'prowadzenie szkoleń', 'prowadzenia szkoleń'],
-    'Instruktor (sport/rekreacja)': ['instruktor'],
-    'Psychologia i terapia': ['psycholog', 'terapeut', 'logoped'],
-  },
-  'Finanse i ubezpieczenia': {
-    'Księgowość': ['księgow', 'rachunkow'],
-    'Kadry i płace': ['kadry i płace', 'kadrowo-płacow', 'kadr i płac', 'naliczanie wynagrodzeń'],
-    'Doradztwo finansowe': ['doradca finansowy', 'doradztwa finansowego', 'produktów finansowych', 'kredyt'],
-    'Ubezpieczenia': ['ubezpiecze', 'agent ubezpieczeniowy'],
-    'Windykacja': ['windykac'],
-    'Analiza finansowa': ['analityk finansowy', 'analizy finansowej', 'controlling'],
-    'Fakturowanie': ['faktur'],
-    'Podatki': ['podatk', 'deklaracji vat', 'vat'],
-  },
-  'Sprzedaż i obsługa klienta': {
-    'Obsługa kasy fiskalnej': ['kasy fiskalnej', 'kasa fiskalna', 'kasjer'],
-    'Techniki sprzedaży': ['sprzedawca', 'sprzedaży', 'handlowiec', 'handlow'],
-    'Obsługa klienta': ['obsługa klienta', 'obsługi klienta', 'obsłudze klienta', 'obsługę klienta'],
-    'CRM': ['crm'],
-    'Call center / infolinia': ['call center', 'infolini', 'telefoniczna obsługa', 'telemarket'],
-    'Merchandising': ['merchandis', 'ekspozycj', 'wykładanie towaru', 'wykładania towaru'],
-    'Sprzedaż B2B': ['b2b', 'klienta biznesowego', 'klientów biznesowych'],
-    'Doradztwo techniczne': ['doradca techniczny', 'doradztwo techniczne'],
-  },
-  'Biuro i administracja': {
-    'MS Office': ['ms office', 'pakiet office', 'pakietu office', 'word', 'powerpoint'],
-    'Prace biurowe': ['prace biurowe', 'prac biurowych', 'administracyjn', 'biurow'],
-    'Obsługa sekretariatu': ['sekretariat', 'sekretarka', 'asystentka zarządu', 'asystent zarządu'],
-    'Obieg dokumentów': ['dokumentacj', 'archiwizacj', 'obieg dokumentów'],
-    'HR i rekrutacja': ['rekrutac', 'hr ', 'zasobów ludzkich'],
-    'Zamówienia publiczne': ['zamówień publicznych', 'zamówienia publiczne', 'przetarg'],
-    'Prawo i umowy': ['prawnik', 'radca prawny', 'umów', 'prawne'],
-  },
-  'Marketing i media': {
-    'Marketing internetowy': ['marketing', 'kampanii reklamowych', 'kampanie reklamowe'],
-    'Social media': ['social media', 'facebook', 'instagram', 'tiktok'],
-    'Grafika komputerowa': ['grafik', 'photoshop', 'canva', 'illustrator'],
-    'Copywriting': ['copywrit', 'tworzenie treści', 'tworzenia treści', 'redagowani'],
-    'Fotografia i wideo': ['fotograf', 'montaż wideo', 'montażu wideo', 'filmowani'],
-    'SEO/SEM': ['seo', 'sem', 'google ads', 'pozycjonowani'],
-  },
-  'Usługi i inne': {
-    'Sprzątanie obiektów': ['sprzątacz', 'sprzątani', 'utrzymania czystości', 'utrzymanie czystości', 'porządkow'],
-    'Ochrona mienia': ['ochroniarz', 'ochrony fizycznej', 'dozór', 'dozoru', 'kwalifikowany pracownik ochrony', 'portier'],
-    'Ogrodnictwo i zieleń': ['ogrodnik', 'ogrodnicz', 'pielęgnacja zieleni', 'pielęgnacji zieleni', 'koszeni'],
-    'Rolnictwo': ['rolnicz', 'rolnik', 'zbiory', 'gospodarstw'],
-    'Krawiectwo': ['krawiec', 'krawcow', 'szyci'],
-    'Praca przy taśmie / pakowanie': ['pakowacz', 'taśmie produkcyjnej', 'sortowani', 'etykietowani'],
-    'Kierowanie zespołem': ['kierownik', 'brygadzist', 'lider zespołu', 'zarządzanie zespołem', 'zarządzania zespołem', 'koordynator'],
-  },
-};
-
-
-/* ---------- AUTO-WYKRYWANIE KOMPETENCJI ---------- */
-const CUE = /(?:znajomość|znajomości|obsługa|obsługi|uprawnienia|uprawnień|kurs|certyfikat|licencja|umiejętność|doświadczenie w|biegłość w)\s+([a-ząćęłńóśźż0-9#+][a-ząćęłńóśźż0-9#+./-]*(?:\s+[a-ząćęłńóśźż0-9#+][a-ząćęłńóśźż0-9#+./-]*){0,2})/gi;
-
-const STOP = new Set(('i,oraz,w,we,z,ze,na,do,od,po,za,o,u,dla,przy,pod,jest,są,lub,albo,nie,się,' +
-  'pracy,pracę,praca,firmie,firmy,osoby,osób,godzin,umowy,mile,widziane,widziana,min,itp,np,tym,' +
-  'zakresu,zakresie,obszarze,poziomie,stopniu,warunkiem,atutem,plusem,wymagana,wymagane,dobra,dobrej,bardzo,' +
-  'zawodzie,zawodu,podobnym,podobnego,stanowisku,stanowiska,branży,branża,doświadczenie,doświadczenia,' +
-  'presją,presja,wózków,wózkami,schematów,czytania,czytanie,obsługi,obsługa,znajomość,znajomości,' +
-  'innych,inne,każdym,swojej,swojego,naszej,naszego,ważne,gotowość,gotowości,umiejętność,umiejętności').split(','));
-
-
-const MAX_AUTO = 150;
-
-const BAD_LAST = new Set(('nad,pod,przy,dla,do,od,po,za,bez,sobie,zgodnie,wyłącznie,powyżej,poniżej,' +
-  'związanych,związane,dotyczących,dotyczące,oraz,czy,jako,typu,wobec,według,celu,ramach').split(','));
-const BAD_FIRST = new Set(('wykonywania,wykonywanie,radzenia,radzenie,prowadzenia,prowadzenie,' +
-  'nadzór,nadzoru,kontrola,kontroli,zagadnień,zagadnienia,najlepszych,ustawy,ustaw,programu,podstawowych,' +
-  'innych,inne,pozostałych,wszystkich,klienta,klientów,zespole,zespołu,numerze,numeru').split(','));
-
-function cleanPhrase(p) {
-  const words = p.toLowerCase().trim().split(/\s+/);
-  while (words.length && STOP.has(words.at(-1))) words.pop();
-  while (words.length && STOP.has(words.at(0))) words.shift();
-  if (!words.length) return null;
-  /* fraza nie moze konczyc sie ani zaczynac slowem wymagajacym kontynuacji */
-  if (BAD_LAST.has(words.at(-1))) return null;
-  if (BAD_FIRST.has(words.at(0))) return null;
-  /* frazy z cyframi lub krotsze niz 4 znaki = smieci */
-  const joined = words.join(' ');
-  if (joined.length < 4) return null;
-  if (/[0-9]/.test(joined)) return null;
-  /* pojedyncze slowo w przypadku zaleznym = odrzuc */
-  if (words.length === 1) {
-    const w = words.at(0);
-    const badEnd = ['ym', 'im', 'ego', 'emu', 'ach', 'ami', 'ą', 'ę', 'em', 'owi', 'ów'];
-    for (const e of badEnd) {
-      if (w.endsWith(e)) return null;
-    }
-  }
-  return joined;
-}
-
-
-
-function mineSkills(items) {
-  /* prog zalezny od wielkosci bazy: 3 przy malej, wiecej przy duzej */
-  const minOffers = Math.max(3, Math.round(items.length / 1500));
-  const known = [];
-  for (const skills of Object.values(SKILL_DEFS)) {
-    for (const kws of Object.values(skills)) {
-      for (const k of kws) known.push(k);
-    }
-  }
-  const freq = {};
-  for (const it of items) {
-    const inThis = new Set();
-    for (const m of it.text.toLowerCase().matchAll(CUE)) {
-      const p = cleanPhrase(m.at(1));
-      if (!p || STOP.has(p)) continue;
-            let overlaps = false;
-      for (const k of known) {
-        if (p.includes(k) || k.includes(p)) { overlaps = true; break; }
-      }
-      if (!overlaps) {
-        for (const w of p.split(' ')) {
-          for (const k of known) {
-            if (w.length > 4 && (k.includes(w.slice(0, 5)) || w.includes(k))) { overlaps = true; break; }
-          }
-          if (overlaps) break;
-        }
-      }
-
-      if (!overlaps) inThis.add(p);
-    }
-    for (const p of inThis) {
-      if (!freq[p]) freq[p] = { total: 0, byCat: {} };
-      freq[p].total += 1;
-      freq[p].byCat[it.cat] = (freq[p].byCat[it.cat] || 0) + 1;
-    }
-  }
-  const list = [];
-  for (const phrase of Object.keys(freq)) {
-    const info = freq[phrase];
-    if (info.total >= minOffers) list.push({ phrase, info });
-  }
-  list.sort((a, b) => b.info.total - a.info.total);
-
-  const result = [];
-  for (const item of list.slice(0, MAX_AUTO)) {
-    let bestCat = 'Biuro i administracja';
-    let bestN = -1;
-    for (const catName of Object.keys(item.info.byCat)) {
-      const n = item.info.byCat[catName];
-      if (n > bestN) { bestN = n; bestCat = catName; }
-    }
-    const name = item.phrase.charAt(0).toUpperCase() + item.phrase.slice(1);
-   result.push({ name, keywords: [item.phrase], regexes: [kwToRegex(item.phrase)], cat: bestCat });
-   
-  }
-  console.log('Auto-skille: ' + result.length + ' (prog: ' + minOffers + ' ofert)');
-  return result;
-}
-
-/* ---------- DOPASOWANIE Z GRANICAMI SLOW ---------- */
-const PL_CHARS = 'a-ząćęłńóśźż0-9';
-
-function kwToRegex(kw) {
-  const k = kw.trim().toLowerCase();
-  const esc = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  /* lewa granica zawsze; prawa tylko dla krotkich fraz (sep, adr, qa, ce, hr, seo, vat...) */
-  const right = k.length <= 4 ? `(?![${PL_CHARS}])` : '';
-  return new RegExp(`(?<![${PL_CHARS}#+])${esc}${right}`, 'i');
-}
-
-/* prekompilacja slownika (raz, przy starcie) */
-const SKILL_REGEX = {};
-for (const [catName, skills] of Object.entries(SKILL_DEFS)) {
-  SKILL_REGEX[catName] = {};
-  for (const [skillName, kws] of Object.entries(skills)) {
-    SKILL_REGEX[catName][skillName] = kws.map(kwToRegex);
-  }
-}
-
-function detectSkills(text, autoSkills) {
-  const t = text.toLowerCase();
-  const found = [];
-  for (const skills of Object.values(SKILL_REGEX)) {
-    for (const [skillName, regexes] of Object.entries(skills)) {
-      if (regexes.some(re => re.test(t))) found.push(skillName);
-    }
-  }
-  for (const a of autoSkills) {
-    if (a.regexes
-      ? a.regexes.some(re => re.test(t))
-      : a.keywords.some(k => t.includes(k))) found.push(a.name);
-  }
-  return found;
-}
-
-
-/* przypisanie kategorii po tresci oferty */
-function categoryFor(text) {
-  const t = text.toLowerCase();
-  let bestCat = 'Biuro i administracja';
-  let bestN = 0;
-  for (const catName of Object.keys(SKILL_REGEX)) {
-    let n = 0;
-    for (const regexes of Object.values(SKILL_REGEX[catName])) {
-      if (regexes.some(re => re.test(t))) n += 1;
-    }
-    if (n > bestN) { bestN = n; bestCat = catName; }
-  }
-  return bestCat;
-}
-
-
-function baseCats() {
-  const cats = {};
-  for (const catName of Object.keys(SKILL_DEFS)) {
-    cats[catName] = Object.keys(SKILL_DEFS[catName]);
-  }
-  return cats;
-}
 
 function daysAgo(dateStr) {
   if (!dateStr) return null;
@@ -549,7 +214,7 @@ async function fetchCareerjet() {
 }
 
 /* ---------- SYNCHRONIZACJA ---------- */
-let DATA = { jobs: [], cats: baseCats(), lastSync: null };
+let DATA = { jobs: [], cats: {}, lastSync: null };
 let syncing = false;
 
 function dedupe(list) {
@@ -569,6 +234,22 @@ function dedupe(list) {
 }
 
 const RESCUE_RATIO = 0.6; /* ratujemy stare oferty zrodla, gdy da mniej niz 60% wczorajszego stanu */
+const STATS_FILE = path.join(__dirname, 'stats-history.json');
+function saveSnapshot(jobs, skillFreq) {
+  try {
+    let hist = [];
+    if (fs.existsSync(STATS_FILE)) hist = JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'));
+    const day = new Date().toISOString().slice(0, 10);
+    if (hist.length && hist.at(-1).date === day) hist.pop(); /* nadpisz dzisiejszy */
+    const perPortal = {};
+    let withSalary = 0;
+    for (const j of jobs) { perPortal[j.portal] = (perPortal[j.portal] || 0) + 1; if (j.salary) withSalary += 1; }
+    const top = Object.entries(skillFreq).sort((a, b) => b.at(1) - a.at(1)).slice(0, 100);
+    hist.push({ date: day, total: jobs.length, perPortal, withSalary, topSkills: Object.fromEntries(top) });
+    fs.writeFileSync(STATS_FILE, JSON.stringify(hist));
+    console.log('Sync: snapshot statystyk zapisany (' + hist.length + ' dni historii)');
+  } catch (e) { console.error('Snapshot blad:', e.message); }
+}
 
 async function syncAll() {
   if (syncing) { console.log('Sync: juz trwa, pomijam'); return; }
@@ -649,7 +330,7 @@ async function syncAll() {
         remote: /zdaln|remote|home office/i.test(r.text),
         portal: r.portal,
         url: r.url,
-        skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => groupName(s.k)).filter(g => g !== '__ODRZUC__'))) : detectSkills(r.text, []),
+        skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => groupName(s.k)).filter(g => g !== '__ODRZUC__'))) : [],
         skillsOrig: r.ai ? r.ai.skills.map(s => ({ o: s.o, k: groupName(s.k) })).filter(t => t.k !== '__ODRZUC__') : [],
         edu: (r.ai && r.ai.edu) ? { poziom: r.ai.edu.poziom, kierunek: (function(){
           let k = r.ai.edu.kierunek ? eduDirName(r.ai.edu.kierunek) : null;
@@ -670,6 +351,11 @@ async function syncAll() {
             'edukacja': 'pedagogika', 'bhp': 'bezpieczeństwo i higiena pracy',
             'ślusarz': 'ślusarstwo', 'sprzedawca': 'handel',
             'szwaczka maszynowa': 'krawiectwo',
+            'terapii zajęciowej': 'terapia zajęciowa',
+            'farmaceutyka': 'farmacja',
+            'pielęgniarstwo położnictwo': 'pielęgniarstwo',
+            'elektryka': 'elektrotechnika',
+            'elektroenergetyka': 'elektrotechnika',
             'techniczne': null, 'technika': null, 'techniki': null,
             'technologia': null, 'technologie': null, 'politechniczne': null,
             'inżynieria': null, 'przemysł': null, 'produkcja': null,
@@ -682,6 +368,7 @@ async function syncAll() {
           if (k && (k.length < 4 || k.length > 28)) k = null;
           return k;
         })() } : null,
+        exp: (r.ai && r.ai.exp) ? r.ai.exp : [],
 
         age: r.age,
         posted: new Date(now - (r.age || 0) * 86400000).toISOString(),
@@ -727,6 +414,7 @@ async function syncAll() {
 
     DATA = { jobs, cats, lastSync: new Date().toISOString() };
     fs.writeFileSync(JOBS_FILE, JSON.stringify(DATA));
+    saveSnapshot(jobs, skillFreq);
     console.log('Sync: zapisano jobs.json');
   } catch (e) {
     console.error('SYNC BLAD:', e.message);
@@ -778,6 +466,57 @@ app.get('/api/sync', (req, res) => {
   }
   syncAll();
   res.json({ info: 'Synchronizacja uruchomiona w tle. Postęp sprawdzisz pod /api/status' });
+});
+
+/* ---------- WYSZUKIWANIE Z PUNKTACJA (stronicowane) ---------- */
+function scoreJob(j, userSkills) {
+  const sk = j.skills || [];
+  let have = 0, learn = 0, total = sk.length, blocked = false;
+  for (const s of sk) {
+    const st = userSkills[s];
+    if (st === 'never') blocked = true;
+    else if (st === 'have') have += 1;
+    else if (st === 'learn') learn += 1;
+  }
+  if (j.edu && j.edu.poziom) {
+    total += 1;
+    const LV = ['podstawowe', 'zawodowe', 'średnie', 'wyższe'];
+    let my = -1;
+    for (let i = 0; i < LV.length; i++) if (userSkills['EDU:' + LV.at(i)] === 'have') my = Math.max(my, i);
+    const ok = my >= LV.indexOf(j.edu.poziom);
+    if (j.edu.kierunek) {
+      const st = userSkills['EDUK:' + j.edu.kierunek];
+      if (ok && st === 'have') have += 1;
+      else if (ok && st === 'learn') learn += 1;
+    } else if (ok) have += 1;
+  }
+  if (blocked) return -1;
+  return total ? Math.round((have + learn * 0.5) / total * 100) : 0;
+}
+
+app.post('/api/search', (req, res) => {
+  const b = req.body || {};
+  const q = String(b.q || '').toLowerCase().trim();
+  const loc = String(b.loc || '').toLowerCase().trim();
+  const userSkills = b.skills || {};
+  const page = Math.max(0, parseInt(b.page, 10) || 0);
+  const size = Math.min(100, parseInt(b.size, 10) || 50);
+  const out = [];
+  for (const j of DATA.jobs) {
+    if (q && !((j.title || '') + ' ' + (j.company || '')).toLowerCase().includes(q)) continue;
+    if (loc && !(j.location || '').toLowerCase().includes(loc)) continue;
+    if (b.portal && j.portal !== b.portal) continue;
+    if (b.remote && !j.remote) continue;
+    const score = scoreJob(j, userSkills);
+    if (score < 0) continue;
+    if (b.minScore && score < b.minScore) continue;
+    out.push({ j, score });
+  }
+  if (b.sort === 'title') out.sort((a, x) => a.j.title.localeCompare(x.j.title, 'pl'));
+  else out.sort((a, x) => x.score - a.score);
+  const items = out.slice(page * size, (page + 1) * size)
+    .map(r => Object.assign({ score: r.score }, r.j));
+  res.json({ total: out.length, page, size, jobs: items });
 });
 
 /* ---------- START ---------- */
