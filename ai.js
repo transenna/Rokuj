@@ -97,36 +97,47 @@ function hashText(text) {
 const PROMPT = 'Jestes ekspertem HR. Przeczytaj ogloszenie o prace i zwroc JSON:\n' +
   '{"kompetencje":[{"nazwa":"...","kategoria":"..."}],' +
   '"wyksztalcenie":{"poziom":"...","kierunek":"..."} albo null,' +
+  '"doswiadczenie":[{"dziedzina":"...","lata":liczba albo null}] albo [],' +
   '"stawka":"..." albo null}\n' +
   'ZASADY dla "kompetencje":\n' +
-  '- wypisz WSZYSTKIE wymagane lub mile widziane: umiejetnosci, uprawnienia, certyfikaty, jezyki obce, technologie, cechy osobowe i doswiadczenie\n' +
-  '- NIE umieszczaj tu wyksztalcenia (jest na nie osobne pole)\n' +
-  '- "nazwa": krotko, po polsku, w mianowniku, dokladnie wg tresci ogloszenia (nie wymyslaj)\n' +
+  '- wypisz WSZYSTKIE wymagane lub mile widziane: umiejetnosci, uprawnienia, certyfikaty, jezyki obce, technologie i cechy osobowe\n' +
+  '- NIE umieszczaj tu wyksztalcenia ani doswiadczenia (maja osobne pola)\n' +
+  '- "nazwa": krotko, po polsku, w mianowniku, dokladnie wg tresci (nie wymyslaj)\n' +
   '- "kategoria": wybierz JEDNA z listy: ' + KATEGORIE.join(' | ') + '\n' +
-  'ZASADY dla "wyksztalcenie" (null jesli ogloszenie nie stawia wymogu):\n' +
+  'ZASADY dla "wyksztalcenie" (null jesli brak wymogu):\n' +
   '- "poziom": podstawowe | zawodowe | srednie | wyzsze\n' +
-  '- "kierunek": nazwa kierunku/specjalnosci jesli wymagana (np. "pedagogika", "elektrotechnika"); null jesli wystarczy jakiekolwiek wyksztalcenie danego poziomu\n' +
+  '- "kierunek": nazwa kierunku jesli wymagany kierunkowy; null jesli dowolny\n' +
+  'ZASADY dla "doswiadczenie" (pusta lista jesli brak wymogu):\n' +
+  '- "dziedzina": krotko, np. "sprzedaz", "obsluga klienta", "ksiegowosc", "produkcja", "zarzadzanie zespolem"; ' +
+  'gole "doswiadczenie na podobnym stanowisku" -> dziedzina "podobne stanowisko"\n' +
+  '- "lata": liczba lat jesli podana (np. "min. 2 lata" -> 2), inaczej null\n' +
   'ZASADY dla "stawka":\n' +
-  '- tylko jesli w tresci podano kwote wynagrodzenia; przepisz np. "5 000 - 7 000 zl/mies. brutto" albo "35 zl/godz."\n' +
-  '- kwoty niebedace wynagrodzeniem ignoruj; brak kwoty = null';
+  '- tylko jesli podano kwote wynagrodzenia; przepisz np. "5 000 - 7 000 zl/mies. brutto"; brak = null';
 
 async function askAI(text) {
-  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + KEY },
-    body: JSON.stringify({
-      model: MODEL,
-      temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: PROMPT },
-        { role: 'user', content: String(text).slice(0, 8000) },
-      ],
-    }),
-  });
-  if (!resp.ok) throw new Error('OpenAI HTTP ' + resp.status);
-  const data = await resp.json();
-  return JSON.parse(data.choices.at(0).message.content);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + KEY },
+      signal: AbortSignal.timeout(60000),
+      body: JSON.stringify({
+        model: MODEL,
+        temperature: 0,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: PROMPT },
+          { role: 'user', content: String(text).slice(0, 8000) },
+        ],
+      }),
+    });
+    if (resp.status === 429 && attempt < 3) {
+      await new Promise(r => setTimeout(r, 15000 * attempt));
+      continue;
+    }
+    if (!resp.ok) throw new Error('OpenAI HTTP ' + resp.status);
+    const data = await resp.json();
+    return JSON.parse(data.choices.at(0).message.content);
+  }
 }
 
 function toResult(raw) {
@@ -149,8 +160,16 @@ function toResult(raw) {
       edu = { poziom: p, kierunek: kier };
     }
   }
+    const exp = [];
+  for (const d of (raw.doswiadczenie || [])) {
+    if (!d || !d.dziedzina) continue;
+    const dz = norm(d.dziedzina);
+    if (dz.length < 3 || dz.length > 40) continue;
+    exp.push({ dz, lata: (typeof d.lata === 'number' && d.lata > 0 && d.lata < 30) ? d.lata : null });
+  }
+
   const salary = raw.stawka ? String(raw.stawka).trim() : null;
-  return { skills, edu, salary };
+  return { skills, edu, exp, salary };
 }
 
 /* ---------- GLOWNA FUNKCJA: analiza listy ofert ---------- */
