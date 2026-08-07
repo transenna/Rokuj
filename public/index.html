@@ -281,7 +281,7 @@ function buildEduHtml(){
   for(const j of JOBS){
     if(j.edu && j.edu.kierunek) dirFreq[j.edu.kierunek] = (dirFreq[j.edu.kierunek] || 0) + 1;
   }
-  const dirs = Object.keys(dirFreq).sort(function(a, b){ return dirFreq[b] - dirFreq[a]; }).slice(0, 30);
+  const dirs = Object.keys(dirFreq).sort(function(a, b){ return a.localeCompare(b, 'pl'); }).slice(0, 40);
   let marked = 0, inner = '';
   inner += '<div class="skill-row"><span><b>Poziom (zaznacz najwyższy, jaki masz)</b></span></div>';
   for(const l of LEVELS){
