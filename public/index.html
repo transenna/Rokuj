@@ -417,7 +417,7 @@ async function doSearch(reset){
     loc: document.getElementById('fLocation').value,
     portal: document.getElementById('fPortal').value,
     sort: document.getElementById('fSort').value,
-   dir: (sortDir === 'asc') ? 'asc' : 'desc',
+   dir: sortDir,
     minScore: parseInt(document.getElementById('fScore').value, 10),
     remote: remoteOnly, salaryOnly: salaryOnly,
     skills: userSkills, page: page, size: 50,
