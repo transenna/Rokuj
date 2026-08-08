@@ -406,29 +406,6 @@ for (const g of Object.keys(skillFreq)) {
   cats[p.cat][p.sub].push(g);
 }
 
-    const skillFreq = {};
-    for (const r of fresh) {
-      if (!r.ai) continue;
-      const seenIn = new Set();
-      for (const s of r.ai.skills) {
-        const g = groupName(s.k);
-        if (g === '__ODRZUC__' || !itemToPlace[g] || seenIn.has(g)) continue;
-        seenIn.add(g);
-        skillFreq[g] = (skillFreq[g] || 0) + 1;
-      }
-    }
-    /* cats: {kategoria: {podkategoria: [pozycje]}} - tylko wystepujace w ofertach */
-    const cats = {};
-    for (const g of Object.keys(skillFreq)) {
-      const p = itemToPlace[g];
-      if (!cats[p.cat]) cats[p.cat] = {};
-      if (!cats[p.cat][p.sub]) cats[p.cat][p.sub] = [];
-      cats[p.cat][p.sub].push(g);
-    }
-
-
-
-
     const perPortal = {};
     for (const j of jobs) perPortal[j.portal] = (perPortal[j.portal] || 0) + 1;
     console.log('=== SYNC OK: ' + jobs.length + ' ofert (nowych: ' + fresh.length +
