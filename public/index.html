@@ -259,17 +259,26 @@ function esc(s){
 async function load(){
   loadProfile();
   try{
-    META = await (await fetch('/api/meta')).json();
+    const respMeta = await fetch('/api/meta');
+    const meta = await respMeta.json();
+    CATEGORIES = meta.cats;
+
+    const respJobs = await fetch('/api/jobs');
+    JOBS = await respJobs.json();
   }catch(e){
-    document.getElementById('jobs').innerHTML = '<div class="empty">Nie udało się pobrać danych. Odśwież stronę.</div>';
+    document.getElementById('jobs').innerHTML =
+      '<div class="empty">Nie udało się pobrać danych. Odśwież stronę za chwilę.</div>';
     return;
   }
+  const portals = Array.from(new Set(JOBS.map(function(j){ return j.portal; }))).sort();
   let opts = '<option value="">Wszystkie portale</option>';
-  for(const p of Object.keys(META.portals).sort()){ opts += '<option>' + esc(p) + '</option>'; }
+  for(const p of portals){ opts += '<option>' + esc(p) + '</option>'; }
   document.getElementById('fPortal').innerHTML = opts;
+
   renderSkills();
-  doSearch(true);
+  renderJobs();
 }
+
 
 function toggleHtml(st){
   return '<span class="toggle">' +
