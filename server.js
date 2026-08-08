@@ -377,13 +377,35 @@ async function syncAll() {
     }
     for (const j of kept) jobs.push(j);
 
-    const { TAXONOMY } = require('./taxonomy');
-    const itemToPlace = {};
-    for (const cat of Object.keys(TAXONOMY)) {
-      for (const sub of Object.keys(TAXONOMY[cat])) {
-        for (const it of TAXONOMY[cat][sub]) itemToPlace[it] = { cat, sub };
-      }
-    }
+  const { TAXONOMY } = require('./taxonomy');
+const itemToPlace = {};
+for (const cat of Object.keys(TAXONOMY)) {
+  for (const sub of Object.keys(TAXONOMY[cat])) {
+    for (const it of TAXONOMY[cat][sub]) itemToPlace[it] = { cat, sub };
+  }
+}
+
+/* licz częstość PO TYM, co jest zapisane w jobs[].skills */
+const skillFreq = {};
+for (const j of jobs) {
+  const seen = new Set();
+  for (const s of (j.skills || [])) {
+    if (seen.has(s)) continue;
+    seen.add(s);
+    skillFreq[s] = (skillFreq[s] || 0) + 1;
+  }
+}
+
+/* tylko do panelu: pokaz kompetencje, które występują przynajmniej raz */
+const cats = {};
+for (const g of Object.keys(skillFreq)) {
+  const p = itemToPlace[g];
+  if (!p) continue;
+  if (!cats[p.cat]) cats[p.cat] = {};
+  if (!cats[p.cat][p.sub]) cats[p.cat][p.sub] = [];
+  cats[p.cat][p.sub].push(g);
+}
+
     const skillFreq = {};
     for (const r of fresh) {
       if (!r.ai) continue;
