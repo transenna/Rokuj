@@ -521,10 +521,25 @@ app.post('/api/search', (req, res) => {
     if (b.minScore && score < b.minScore) continue;
     out.push({ j, score });
   }
-  const dir = (b.dir === 'asc') ? 1 : -1;
-  if (b.sort === 'title') out.sort((a, x) => dir * a.j.title.localeCompare(x.j.title, 'pl') * -1);
-  else if (b.sort === 'salary') out.sort((a, x) => dir * (salaryNum(x.j.salary) - salaryNum(a.j.salary)));
-  else out.sort((a, x) => dir * (x.score - a.score));
+  const isAsc = (b.dir === 'asc');
+
+  if (b.sort === 'title') {
+    out.sort((a, x) => {
+      const cmp = a.j.title.localeCompare(x.j.title, 'pl');
+      return isAsc ? cmp : -cmp;
+    });
+  } else if (b.sort === 'salary') {
+    out.sort((a, x) => {
+      const cmp = salaryNum(x.j.salary) - salaryNum(a.j.salary);
+      return isAsc ? -cmp : cmp;   // asc: najniżej na górze, desc: najwyżej na górze
+    });
+  } else {
+    out.sort((a, x) => {
+      const cmp = x.score - a.score; // największe score -> pierwszy (desc)
+      return isAsc ? -cmp : cmp;   // asc odwraca
+    });
+  }
+
 
   const items = out.slice(page * size, (page + 1) * size)
     .map(r => Object.assign({ score: r.score }, r.j));
