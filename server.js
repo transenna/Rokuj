@@ -377,34 +377,35 @@ async function syncAll() {
     }
     for (const j of kept) jobs.push(j);
 
-  const { TAXONOMY } = require('./taxonomy');
-const itemToPlace = {};
-for (const cat of Object.keys(TAXONOMY)) {
-  for (const sub of Object.keys(TAXONOMY[cat])) {
-    for (const it of TAXONOMY[cat][sub]) itemToPlace[it] = { cat, sub };
-  }
-}
+    const { TAXONOMY } = require('./taxonomy');
+    const itemToPlace = {};
+    for (const cat of Object.keys(TAXONOMY)) {
+      for (const sub of Object.keys(TAXONOMY[cat])) {
+        for (const it of TAXONOMY[cat][sub]) itemToPlace[it] = { cat, sub };
+      }
+    }
+    const skillFreq = {};
+    for (const r of fresh) {
+      if (!r.ai) continue;
+      const seenIn = new Set();
+      for (const s of r.ai.skills) {
+        const g = groupName(s.k);
+        if (g === '__ODRZUC__' || !itemToPlace[g] || seenIn.has(g)) continue;
+        seenIn.add(g);
+        skillFreq[g] = (skillFreq[g] || 0) + 1;
+      }
+    }
+    /* cats: {kategoria: {podkategoria: [pozycje]}} - tylko wystepujace w ofertach */
+    const cats = {};
+    for (const g of Object.keys(skillFreq)) {
+      const p = itemToPlace[g];
+      if (!cats[p.cat]) cats[p.cat] = {};
+      if (!cats[p.cat][p.sub]) cats[p.cat][p.sub] = [];
+      cats[p.cat][p.sub].push(g);
+    }
 
-/* licz częstość PO TYM, co jest zapisane w jobs[].skills */
-const skillFreq = {};
-for (const j of jobs) {
-  const seen = new Set();
-  for (const s of (j.skills || [])) {
-    if (seen.has(s)) continue;
-    seen.add(s);
-    skillFreq[s] = (skillFreq[s] || 0) + 1;
-  }
-}
 
-/* tylko do panelu: pokaz kompetencje, które występują przynajmniej raz */
-const cats = {};
-for (const g of Object.keys(skillFreq)) {
-  const p = itemToPlace[g];
-  if (!p) continue;
-  if (!cats[p.cat]) cats[p.cat] = {};
-  if (!cats[p.cat][p.sub]) cats[p.cat][p.sub] = [];
-  cats[p.cat][p.sub].push(g);
-}
+
 
     const perPortal = {};
     for (const j of jobs) perPortal[j.portal] = (perPortal[j.portal] || 0) + 1;
@@ -520,25 +521,10 @@ app.post('/api/search', (req, res) => {
     if (b.minScore && score < b.minScore) continue;
     out.push({ j, score });
   }
-  const isAsc = (b.dir === 'asc');
-
-  if (b.sort === 'title') {
-    out.sort((a, x) => {
-      const cmp = a.j.title.localeCompare(x.j.title, 'pl');
-      return isAsc ? cmp : -cmp;
-    });
-  } else if (b.sort === 'salary') {
-    out.sort((a, x) => {
-      const cmp = salaryNum(x.j.salary) - salaryNum(a.j.salary);
-      return isAsc ? -cmp : cmp;   // asc: najniżej na górze, desc: najwyżej na górze
-    });
-  } else {
-    out.sort((a, x) => {
-      const cmp = x.score - a.score; // największe score -> pierwszy (desc)
-      return isAsc ? -cmp : cmp;   // asc odwraca
-    });
-  }
-
+  const dir = (b.dir === 'asc') ? 1 : -1;
+  if (b.sort === 'title') out.sort((a, x) => dir * a.j.title.localeCompare(x.j.title, 'pl') * -1);
+  else if (b.sort === 'salary') out.sort((a, x) => dir * (salaryNum(x.j.salary) - salaryNum(a.j.salary)));
+  else out.sort((a, x) => dir * (x.score - a.score));
 
   const items = out.slice(page * size, (page + 1) * size)
     .map(r => Object.assign({ score: r.score }, r.j));
