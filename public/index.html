@@ -259,26 +259,17 @@ function esc(s){
 async function load(){
   loadProfile();
   try{
-    const respMeta = await fetch('/api/meta');
-    const meta = await respMeta.json();
-    CATEGORIES = meta.cats;
-
-    const respJobs = await fetch('/api/jobs');
-    JOBS = await respJobs.json();
+    META = await (await fetch('/api/meta')).json();
   }catch(e){
-    document.getElementById('jobs').innerHTML =
-      '<div class="empty">Nie udało się pobrać danych. Odśwież stronę za chwilę.</div>';
+    document.getElementById('jobs').innerHTML = '<div class="empty">Nie udało się pobrać danych. Odśwież stronę.</div>';
     return;
   }
-  const portals = Array.from(new Set(JOBS.map(function(j){ return j.portal; }))).sort();
   let opts = '<option value="">Wszystkie portale</option>';
-  for(const p of portals){ opts += '<option>' + esc(p) + '</option>'; }
+  for(const p of Object.keys(META.portals).sort()){ opts += '<option>' + esc(p) + '</option>'; }
   document.getElementById('fPortal').innerHTML = opts;
-
   renderSkills();
-  renderJobs();
+  doSearch(true);
 }
-
 
 function toggleHtml(st){
   return '<span class="toggle">' +
@@ -417,7 +408,7 @@ async function doSearch(reset){
     loc: document.getElementById('fLocation').value,
     portal: document.getElementById('fPortal').value,
     sort: document.getElementById('fSort').value,
-   dir: sortDir,
+    dir: sortDir,
     minScore: parseInt(document.getElementById('fScore').value, 10),
     remote: remoteOnly, salaryOnly: salaryOnly,
     skills: userSkills, page: page, size: 50,
