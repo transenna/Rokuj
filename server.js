@@ -524,7 +524,7 @@ app.post('/api/search', (req, res) => {
   const isAsc = (b.dir === 'asc');
   if (b.sort === 'title') {
     const clean = t => String(t || '').replace(/^[^a-ząćęłńóśźżA-ZĄĆĘŁŃÓŚŹŻ0-9]+/, '').toLowerCase();
-    /* grupa: 0 = zaczyna sie litera, 1 = cyfra, 2 = inne alfabety/puste */
+    /* grupa: 0 = litera, 1 = cyfra, 2 = inne alfabety/puste */
     const rank = t => {
       const c = clean(t);
       if (/^[a-ząćęłńóśźż]/.test(c)) return 0;
@@ -537,7 +537,18 @@ app.post('/api/search', (req, res) => {
       const cmp = clean(a.j.title).localeCompare(clean(x.j.title), 'pl');
       return isAsc ? cmp : -cmp;
     });
+  } else if (b.sort === 'salary') {
+    out.sort((a, x) => {
+      const cmp = salaryNum(x.j.salary) - salaryNum(a.j.salary);
+      return isAsc ? -cmp : cmp;
+    });
+  } else {
+    out.sort((a, x) => {
+      const cmp = x.score - a.score;
+      return isAsc ? -cmp : cmp;
+    });
   }
+
 
 
   const items = out.slice(page * size, (page + 1) * size)
