@@ -172,7 +172,7 @@ async function fetchCareerjet() {
   for (let page = 1; page <= MAX_PAGES; page++) {
     try {
       const url = 'https://search.api.careerjet.net/v4/query' +
-        '?locale_code=pl_PL&sort=date' +
+        '?locale_code=pl_PL&=date' +
         '&pagesize=50&page=' + page +
         '&user_ip=146.59.12.98' +
         '&user_agent=' + encodeURIComponent('Mozilla/5.0 (RokujPL)');
@@ -244,7 +244,7 @@ function saveSnapshot(jobs, skillFreq) {
     const perPortal = {};
     let withSalary = 0;
     for (const j of jobs) { perPortal[j.portal] = (perPortal[j.portal] || 0) + 1; if (j.salary) withSalary += 1; }
-    const top = Object.entries(skillFreq).sort((a, b) => b.at(1) - a.at(1)).slice(0, 100);
+    const top = Object.entries(skillFreq).((a, b) => b.at(1) - a.at(1)).slice(0, 100);
     hist.push({ date: day, total: jobs.length, perPortal, withSalary, topSkills: Object.fromEntries(top) });
     fs.writeFileSync(STATS_FILE, JSON.stringify(hist));
     console.log('Sync: snapshot statystyk zapisany (' + hist.length + ' dni historii)');
@@ -524,22 +524,21 @@ app.post('/api/search', (req, res) => {
   const isAsc = (b.dir === 'asc');
   if (b.sort === 'title') {
     const clean = t => String(t || '').replace(/^[^a-ząćęłńóśźżA-ZĄĆĘŁŃÓŚŹŻ0-9]+/, '').toLowerCase();
+    /* grupa: 0 = zaczyna sie litera, 1 = cyfra, 2 = inne alfabety/puste */
+    const rank = t => {
+      const c = clean(t);
+      if (/^[a-ząćęłńóśźż]/.test(c)) return 0;
+      if (/^[0-9]/.test(c)) return 1;
+      return 2;
+    };
     out.sort((a, x) => {
+      const ra = rank(a.j.title), rx = rank(x.j.title);
+      if (ra !== rx) return isAsc ? ra - rx : rx - ra;
       const cmp = clean(a.j.title).localeCompare(clean(x.j.title), 'pl');
       return isAsc ? cmp : -cmp;
     });
   }
- else if (b.sort === 'salary') {
-    out.sort((a, x) => {
-      const cmp = salaryNum(x.j.salary) - salaryNum(a.j.salary);
-      return isAsc ? -cmp : cmp;
-    });
-  } else {
-    out.sort((a, x) => {
-      const cmp = x.score - a.score;
-      return isAsc ? -cmp : cmp;
-    });
-  }
+
 
   const items = out.slice(page * size, (page + 1) * size)
     .map(r => Object.assign({ score: r.score }, r.j));
