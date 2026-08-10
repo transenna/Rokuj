@@ -244,7 +244,7 @@ function saveSnapshot(jobs, skillFreq) {
     const perPortal = {};
     let withSalary = 0;
     for (const j of jobs) { perPortal[j.portal] = (perPortal[j.portal] || 0) + 1; if (j.salary) withSalary += 1; }
-    const top = Object.entries(skillFreq).((a, b) => b.at(1) - a.at(1)).slice(0, 100);
+    const top = Object.entries(skillFreq).sort((a, b) => b.at(1) - a.at(1)).slice(0, 100);
     hist.push({ date: day, total: jobs.length, perPortal, withSalary, topSkills: Object.fromEntries(top) });
     fs.writeFileSync(STATS_FILE, JSON.stringify(hist));
     console.log('Sync: snapshot statystyk zapisany (' + hist.length + ' dni historii)');
