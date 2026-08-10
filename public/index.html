@@ -222,8 +222,8 @@ footer a{color:#9CA3AF;}
 <footer>
   <div>Rokuj.pl · oferty pochodzą z legalnych, publicznych źródeł</div>
   <div style="margin-top:6px;">
-    <a href="regulamin.html">Regulamin</a> ·
-    <a href="polityka-prywatnosci.html">Polityka prywatności</a> ·
+    <a href="regulamin.html" target="_blank" rel="noopener">Regulamin</a> ·
+    <a href="polityka-prywatnosci.html" target="_blank" rel="noopener">Polityka prywatności</a> ·
     <a href="mailto:kontakt@rokuj.pl">kontakt@rokuj.pl</a>
   </div>
   <div style="margin-top:6px;color:#B6BCC6;">
@@ -316,7 +316,7 @@ function renderSkills(){
   const catNames = Object.keys(META.cats).sort(function(a, b){
     const ea = NA_KONCU.indexOf(a), eb = NA_KONCU.indexOf(b);
     if(ea !== -1 || eb !== -1) return (ea === -1 ? -1 : (eb === -1 ? 1 : ea - eb));
-    return catWeight(b) - catWeight(a);
+    return a.localeCompare(b, 'pl');
   });
   let html = '';
   for(const cat of catNames){
