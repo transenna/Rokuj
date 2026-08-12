@@ -385,16 +385,15 @@ async function syncAll() {
       }
     }
     const skillFreq = {};
-    for (const r of fresh) {
-      if (!r.ai) continue;
+    for (const j of jobs) {
       const seenIn = new Set();
-      for (const s of r.ai.skills) {
-        const g = groupName(s.k);
-        if (g === '__ODRZUC__' || !itemToPlace[g] || seenIn.has(g)) continue;
-        seenIn.add(g);
-        skillFreq[g] = (skillFreq[g] || 0) + 1;
+      for (const s of (j.skills || [])) {
+        if (!itemToPlace[s] || seenIn.has(s)) continue;
+        seenIn.add(s);
+        skillFreq[s] = (skillFreq[s] || 0) + 1;
       }
     }
+
     /* cats: {kategoria: {podkategoria: [pozycje]}} - tylko wystepujace w ofertach */
     const cats = {};
     for (const g of Object.keys(skillFreq)) {
