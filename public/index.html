@@ -309,6 +309,9 @@ function buildEduHtml(){
   } else if(dirs.length){
     inner += '<div class="skill-row sub-item"><span style="color:#9CA3AF;">Najpierw zaznacz poziom wykształcenia – wtedy odblokują się kierunki.</span></div>';
   }
+  return '<details ' + (openCats['__EDU__'] ? 'open' : '') + ' data-cat="__EDU__"><summary>Wykształcenie' +
+    (marked ? '<span class="cat-count">' + marked + '</span>' : '') + '</summary>' + inner + '</details>';
+}
 
 function buildExpHtml(){
   const doms = Object.keys(META.expDoms).sort(function(a,b){ return a.localeCompare(b,'pl'); });
