@@ -291,15 +291,19 @@ function specialSection(id, title, rows){
 }
 
 function buildEduHtml(){
-  const rows = [{ head:'Poziom (zaznacz najwyższy, jaki masz)' }];
-  for(const l of ['podstawowe','zawodowe','średnie','wyższe']) rows.push({ key:'EDU:'+l, label:'Wykształcenie '+l });
-  const dirs = Object.keys(META.eduDirs).sort(function(a,b){ return a.localeCompare(b,'pl'); });
+  const dirFreq = META.eduDirs || {};
+  const dirs = Object.keys(dirFreq).sort(function(a,b){ return a.localeCompare(b,'pl'); });
+  let marked = 0, inner = '';
+  inner += '<div class="skill-row"><span><b>Poziom (zaznacz najwyższy, jaki masz)</b></span></div>';
+  for(const l of ['podstawowe','zawodowe','średnie','wyższe']){
+    const key = 'EDU:' + l; const st = userSkills[key] || ''; if(st) marked++;
+    inner += '<div class="skill-row sub-item" data-skill="' + key + '"><span>Wykształcenie ' + l + '</span>' + toggleHtml(st) + '</div>';
+  }
   const anyLevel =
     userSkills['EDU:podstawowe'] ||
     userSkills['EDU:zawodowe'] ||
     userSkills['EDU:średnie'] ||
     userSkills['EDU:wyższe'];
-
   if(dirs.length && anyLevel){
     inner += '<div class="skill-row"><span><b>Kierunek (jeśli masz kierunkowe)</b></span></div>';
     for(const d of dirs){
