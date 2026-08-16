@@ -327,10 +327,59 @@ async function normalizeEduDirs(allDirs) {
   saveGroups();
 }
 
-function eduDirName(d) {
-  return groups['EDUDIR:' + norm(d)] || norm(d);
+/* ---------- NORMALIZACJA DZIEDZIN DOSWIADCZENIA ---------- */
+const EXP_PROMPT = 'Dostaniesz liste dziedzin doswiadczenia zawodowego z ogloszen o prace ' +
+  '(po polsku, rozne formy gramatyczne, czasem literowki lub brak polskich znakow). ' +
+  'Zgrupuj frazy oznaczajace to samo i nadaj grupie krotka nazwe. ZASADY nazwy grupy: ' +
+  'mianownik, male litery, poprawna polszczyzna Z POLSKIMI ZNAKAMI (np. "sprzedaż", nie "sprzedaz"); ' +
+  'DZIEDZINA, nie stanowisko (np. "spedytor międzynarodowy" -> "spedycja międzynarodowa", ' +
+  '"kierowca" -> "prowadzenie pojazdów", "pizzerman" -> "gastronomia"); ' +
+  'synonimy i wersje jezykowe lacz (np. "cybersecurity" i "cyberbezpieczeństwo" -> "cyberbezpieczeństwo", ' +
+  '"e-commerce" i "ecommerce" -> "e-commerce", "test automation" -> "automatyzacja testów"); ' +
+  'frazy bardzo waskie uogolnij (np. "zarządzanie szkółką piłkarską" -> "prowadzenie zajęć sportowych"); ' +
+  'frazy bez tresci ("podobne stanowisko", "technika", "operacje", "praca w zespole") ' +
+  'umiesc w grupie o nazwie "ODRZUC". ' +
+  'Zwroc JSON: {"grupy":[{"nazwa":"...","frazy":["..."]}]}.';
+
+async function normalizeExpDirs(allDirs) {
+  if (!KEY) return;
+  loadGroups();
+  const unknown = allDirs.filter(d => !groups['EXP:' + norm(d)]);
+  if (!unknown.length) return;
+  console.log('AI doswiadczenia: ' + unknown.length + ' nowych do znormalizowania');
+  for (let i = 0; i < unknown.length; i += 150) {
+    const batch = unknown.slice(i, i + 150);
+    try {
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + KEY },
+        body: JSON.stringify({
+          model: MODEL, temperature: 0, response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: EXP_PROMPT },
+            { role: 'user', content: JSON.stringify(batch) },
+          ],
+        }),
+      });
+      if (!resp.ok) throw new Error('OpenAI HTTP ' + resp.status);
+      const data = await resp.json();
+      const parsed = JSON.parse(data.choices.at(0).message.content);
+      for (const g of (parsed.grupy || [])) {
+        if (!g || !g.nazwa || !Array.isArray(g.frazy)) continue;
+        const nazwa = norm(g.nazwa) === 'odrzuc' ? 'ODRZUC' : norm(g.nazwa);
+        for (const f of g.frazy) groups['EXP:' + norm(f)] = nazwa;
+      }
+    } catch (e) { console.error('AI doswiadczenia blad: ' + e.message); }
+  }
+  saveGroups();
 }
 
-module.exports = { analyzeAll, groupSkills, groupName, loadGroups, normalizeEduDirs, eduDirName };
+function expDirName(d) {
+  const g = groups['EXP:' + norm(d)];
+  if (g === 'ODRZUC') return null;   /* smiec - pomijamy wpis */
+  return g || norm(d);
+}
+
+module.exports = { analyzeAll, groupSkills, groupName, loadGroups, normalizeEduDirs, eduDirName, normalizeExpDirs, expDirName };
 
 
