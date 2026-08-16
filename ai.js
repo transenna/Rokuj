@@ -108,9 +108,15 @@ const PROMPT = 'Jestes ekspertem HR. Przeczytaj ogloszenie o prace i zwroc JSON:
   '- "poziom": podstawowe | zawodowe | srednie | wyzsze\n' +
   '- "kierunek": nazwa kierunku jesli wymagany kierunkowy; null jesli dowolny\n' +
   'ZASADY dla "doswiadczenie" (pusta lista jesli brak wymogu):\n' +
-  '- "dziedzina": krotko, np. "sprzedaz", "obsluga klienta", "ksiegowosc", "produkcja", "zarzadzanie zespolem"; ' +
-  'gole "doswiadczenie na podobnym stanowisku" -> dziedzina "podobne stanowisko"\n' +
+  '- "dziedzina": DZIEDZINA doswiadczenia, NIGDY nazwa stanowiska (np. "spedycja", nie "spedytor"; ' +
+  '"prowadzenie pojazdow", nie "kierowca")\n' +
+  '- forma: krotko, mianownik, male litery, poprawna polszczyzna Z POLSKIMI ZNAKAMI ' +
+  '(np. "sprzedaż", "księgowość", "obsługa klienta", "zarządzanie zespołem")\n' +
+  '- NIE twórz wpisow bez tresci typu "podobne stanowisko", "branża", "technika"; ' +
+  'jesli oferta wymaga tylko "doswiadczenia na podobnym stanowisku", wywnioskuj dziedzine ' +
+  'z nazwy stanowiska (np. oferta dla kucharza -> "gastronomia"); jesli sie nie da - pomiń\n' +
   '- "lata": liczba lat jesli podana (np. "min. 2 lata" -> 2), inaczej null\n' +
+
   'ZASADY dla "stawka":\n' +
   '- tylko jesli podano kwote wynagrodzenia; przepisz np. "5 000 - 7 000 zl/mies. brutto"; brak = null';
 
