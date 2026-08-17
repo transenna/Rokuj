@@ -374,6 +374,9 @@ async function normalizeExpDirs(allDirs) {
   saveGroups();
 }
 
+function eduDirName(d) {
+  return groups['EDUDIR:' + norm(d)] || norm(d);
+}
 function expDirName(d) {
   const g = groups['EXP:' + norm(d)];
   if (g === 'ODRZUC') return null;   /* smiec - pomijamy wpis */

@@ -348,9 +348,6 @@ async function syncAll() {
     for (const r of fresh) if (r.ai && r.ai.edu && r.ai.edu.kierunek) allDirs.add(r.ai.edu.kierunek);
     await normalizeEduDirs(Array.from(allDirs));
 
-    const allDirs = new Set();
-    for (const r of fresh) if (r.ai && r.ai.edu && r.ai.edu.kierunek) allDirs.add(r.ai.edu.kierunek);
-    await normalizeEduDirs(Array.from(allDirs));
     /* NOWE: grupowanie dziedzin doswiadczenia */
     const allExp = new Set();
     for (const r of fresh) if (r.ai) for (const e of (r.ai.exp || Array.of())) if (e && e.dz) allExp.add(e.dz);
