@@ -90,7 +90,7 @@ async function fetchCBOP() {
   const out = [];
   for (let page = 0; page <= 500; page++) {
     try {
-      const resp = await fetch('https://oferty.praca.gov.pl/portal-api/v3/oferta/wyszukiwanie?page=' + page + '&size=50', {
+      const resp = await fetch('https://oferty.praca.gov.pl/portal-api/v3/oferta/?page=' + page + '&size=50', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: '{}',
@@ -445,6 +445,7 @@ async function syncAll() {
       ', uratowanych: ' + kept.length + '), zrodla: ' + JSON.stringify(perPortal) + ' ===');
 
     DATA = { jobs, cats, lastSync: new Date().toISOString() };
+    buildSkillWeights();
     fs.writeFileSync(JOBS_FILE, JSON.stringify(DATA));
     saveSnapshot(jobs, skillFreq);
     console.log('Sync: zapisano jobs.json');
@@ -460,6 +461,7 @@ function loadFromFile() {
     if (fs.existsSync(JOBS_FILE)) {
       DATA = JSON.parse(fs.readFileSync(JOBS_FILE, 'utf8'));
       console.log('Start: wczytano ' + DATA.jobs.length + ' ofert z jobs.json (sync: ' + DATA.lastSync + ')');
+      buildSkillWeights();
       return true;
     }
   } catch (e) {
@@ -501,17 +503,46 @@ app.get('/api/sync', (req, res) => {
 });
 
 /* ---------- WYSZUKIWANIE Z PUNKTACJA (stronicowane) ---------- */
+/* wagi skilli wg rzadkosci: czeste = malo mowia, rzadkie = cenne (schodki + widelki) */
+let SKILL_W = {};
+function buildSkillWeights() {
+  const jobs = DATA.jobs || [];
+  const freq = {};
+  for (const j of jobs) {
+    const seen = new Set();
+    for (const s of (j.skills || [])) {
+      if (seen.has(s)) continue;
+      seen.add(s);
+      freq[s] = (freq[s] || 0) + 1;
+    }
+  }
+  const n = jobs.length || 1;
+  const w = {};
+  for (const s of Object.keys(freq)) {
+    const udzial = freq[s] / n;
+    if (udzial >= 0.30) w[s] = 0.3;      /* skill w co 3. ofercie = ogolnik */
+    else if (udzial >= 0.10) w[s] = 0.6;
+    else if (udzial >= 0.03) w[s] = 0.8;
+    else w[s] = 1.0;                     /* rzadki i konkretny = pelna waga */
+  }
+  SKILL_W = w;
+  console.log('Wagi skilli przeliczone (' + Object.keys(w).length + ' skilli)');
+}
+const SCORE_PRIOR = 1.5; /* dociaganie: oferta z 2 wymaganiami nie dostanie latwych 100% */
+
 function scoreJob(j, userSkills) {
   const sk = j.skills || [];
-  let have = 0, learn = 0, total = sk.length, blocked = false;
+  let have = 0, learn = 0, total = 0, reqCount = 0, blocked = false;
   for (const s of sk) {
+    const w = SKILL_W[s] || 1.0;
+    total += w; reqCount += 1;
     const st = userSkills[s];
     if (st === 'never') blocked = true;
-    else if (st === 'have') have += 1;
-    else if (st === 'learn') learn += 1;
+    else if (st === 'have') have += w;
+    else if (st === 'learn') learn += w;
   }
   if (j.edu && j.edu.poziom) {
-    total += 1;
+    total += 1; reqCount += 1;
     const LV = ['podstawowe', 'zawodowe', 'średnie', 'wyższe'];
     let my = -1;
     for (let i = 0; i < LV.length; i++) if (userSkills['EDU:' + LV.at(i)] === 'have') my = Math.max(my, i);
@@ -522,16 +553,21 @@ function scoreJob(j, userSkills) {
       else if (ok && st === 'learn') learn += 1;
     } else if (ok) have += 1;
   }
-    for (const e of (j.exp || [])) {
-    total += 1;
+  for (const e of (j.exp || [])) {
+    total += 1; reqCount += 1;
     const st = userSkills['EXP:' + e.dz];
     if (st === 'never') blocked = true;
     else if (st === 'have') have += 1;
     else if (st === 'learn') learn += 1;
   }
-
-  if (blocked) return -1;
-  return total ? Math.round((have + learn * 0.5) / total * 100) : 0;
+  if (blocked) return { score: -1, rank: -1, reqCount };
+  if (!total) return { score: 0, rank: 0, reqCount: 0 };
+  const zdobyte = have + learn * 0.5;
+  return {
+    score: Math.round(zdobyte / total * 100),                /* uczciwy % - pokazujemy */
+    rank: Math.round(zdobyte / (total + SCORE_PRIOR) * 100), /* skorygowany - tylko sortowanie */
+    reqCount
+  };
 }
 
 app.post('/api/search', (req, res) => {
@@ -548,10 +584,10 @@ app.post('/api/search', (req, res) => {
     if (b.portal && j.portal !== b.portal) continue;
     if (b.remote && !j.remote) continue;
     if (b.salaryOnly && !j.salary) continue;
-    const score = scoreJob(j, userSkills);
-    if (score < 0) continue;
-    if (b.minScore && score < b.minScore) continue;
-    out.push({ j, score });
+    const r = scoreJob(j, userSkills);
+    if (r.score < 0) continue;
+    if (b.minScore && r.score < b.minScore) continue;
+    out.push({ j, score: r.score, rank: r.rank, reqCount: r.reqCount });
   }
   const isAsc = (b.dir === 'asc');
   if (b.sort === 'title') {
@@ -576,7 +612,7 @@ app.post('/api/search', (req, res) => {
     });
   } else {
     out.sort((a, x) => {
-      const cmp = x.score - a.score;
+      const cmp = x.rank - a.rank;
       return isAsc ? -cmp : cmp;
     });
   }
@@ -584,7 +620,7 @@ app.post('/api/search', (req, res) => {
 
 
   const items = out.slice(page * size, (page + 1) * size)
-    .map(r => Object.assign({ score: r.score }, r.j));
+  .map(r => Object.assign({ score: r.score, reqCount: r.reqCount }, r.j));
   res.json({ total: out.length, page, size, jobs: items });
 });
 /* metadane do budowy panelu i filtrow */
@@ -629,9 +665,10 @@ function missingItems(j, userSkills) {
       if (!(ok && (st === 'have' || st === 'learn'))) missing.push('Wykształcenie: ' + j.edu.kierunek);
     } else if (!ok) missing.push('Wykształcenie ' + j.edu.poziom);
   }
-  for (const e of (j.exp || [])) {
+   for (const e of (j.exp || [])) {
     const st = userSkills['EXP:' + e.dz];
-    if (st !== 'have' && st !== 'learn') missing.push('Doświadczenie: ' + e.dz);
+    if (st === 'never') blocked = true;
+    else if (st !== 'have' && st !== 'learn') missing.push('Doświadczenie: ' + e.dz);
   }
   return { blocked, missing };
 }
