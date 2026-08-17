@@ -4,7 +4,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const app = express();
-const { analyzeAll, groupSkills, groupName, loadGroups, normalizeEduDirs, eduDirName } = require('./ai');
+const { analyzeAll, groupSkills, groupName, loadGroups, normalizeEduDirs, eduDirName, normalizeExpDirs, expDirName } = require('./ai');
 loadGroups();
 const PORT = process.env.PORT || 3000;
 
@@ -251,6 +251,32 @@ function saveSnapshot(jobs, skillFreq) {
   } catch (e) { console.error('Snapshot blad:', e.message); }
 }
 
+/* ---------- DOSWIADCZENIA: mapowanie + deduplikacja ---------- */
+/* klucz porownawczy bez polskich znakow: "sprzedaż" i "sprzedaz" = to samo */
+function plainKey(s) {
+  return String(s).toLowerCase().replace(/ł/g, 'l')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ').trim();
+}
+
+/* mapuje liste {dz, lata} na nazwy kanoniczne i skleja duplikaty */
+function remapExp(list) {
+  const byKey = {};
+  for (const e of (list || Array.of())) {
+    if (!e || !e.dz) continue;
+    const dz = expDirName(e.dz);
+    if (!dz) continue;                    /* ODRZUC = smiec, pomijamy */
+    const key = plainKey(dz);
+    const prev = byKey[key];
+    if (!prev) { byKey[key] = { dz: dz, lata: e.lata || null }; continue; }
+    /* duplikat: zostaw wersje z polskimi znakami i wieksza liczbe lat */
+    if (/[ąćęłńóśźż]/.test(dz) && !/[ąćęłńóśźż]/.test(prev.dz)) prev.dz = dz;
+    if (e.lata && (!prev.lata || e.lata > prev.lata)) prev.lata = e.lata;
+  }
+  return Object.values(byKey);
+}
+
+
 async function syncAll() {
   if (syncing) { console.log('Sync: juz trwa, pomijam'); return; }
   syncing = true;
@@ -307,6 +333,7 @@ async function syncAll() {
       seen.add(j.url);
       if (j.company) seen.add(keyText);
       const copy = Object.assign({}, j);
+      copy.exp = remapExp(copy.exp);
       copy.age = age;
       if (!copy.posted) copy.posted = new Date(now - (age || 0) * 86400000).toISOString();
       kept.push(copy);
@@ -320,6 +347,15 @@ async function syncAll() {
     const allDirs = new Set();
     for (const r of fresh) if (r.ai && r.ai.edu && r.ai.edu.kierunek) allDirs.add(r.ai.edu.kierunek);
     await normalizeEduDirs(Array.from(allDirs));
+
+    const allDirs = new Set();
+    for (const r of fresh) if (r.ai && r.ai.edu && r.ai.edu.kierunek) allDirs.add(r.ai.edu.kierunek);
+    await normalizeEduDirs(Array.from(allDirs));
+    /* NOWE: grupowanie dziedzin doswiadczenia */
+    const allExp = new Set();
+    for (const r of fresh) if (r.ai) for (const e of (r.ai.exp || Array.of())) if (e && e.dz) allExp.add(e.dz);
+    await normalizeExpDirs(Array.from(allExp));
+
 
     const jobs = [];
     for (const r of fresh) {
@@ -368,7 +404,7 @@ async function syncAll() {
           if (k && (k.length < 4 || k.length > 28)) k = null;
           return k;
         })() } : null,
-        exp: (r.ai && r.ai.exp) ? r.ai.exp : [],
+        exp: remapExp(r.ai ? r.ai.exp : null),
 
         age: r.age,
         posted: new Date(now - (r.age || 0) * 86400000).toISOString(),
