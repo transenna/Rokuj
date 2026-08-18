@@ -489,6 +489,46 @@ app.get('/api/status', (req, res) => res.json({
   ostatniaSynchronizacja: DATA.lastSync,
   trwaSynchronizacja: syncing,
 }));
+
+/* ---------- ANONIMOWE STATYSTYKI (zdarzenia: profil, klik) ---------- */
+/* Dopisuje zdarzenia do pliku stats-events-RRRR-MM.jsonl (jedna linia = jedno zdarzenie).
+   Bez IP, bez danych osobowych. 'uid' to losowy identyfikator wygenerowany w przegladarce. */
+app.post('/api/stat', (req, res) => {
+  try {
+    const b = req.body || {};
+    const typ = String(b.typ || '');
+    if (typ !== 'profil' && typ !== 'klik') return res.status(400).json({ blad: 'Nieznany typ' });
+    const zdarzenie = {
+      t: new Date().toISOString(),
+      typ: typ,
+      uid: String(b.uid || '').slice(0, 40),
+    };
+    if (typ === 'profil') {
+      /* migawka kompetencji: {"nazwa": "have"/"learn"/"never", ...} - max 300 wpisow */
+      const sk = b.skills || {};
+      const out = {};
+      let i = 0;
+      for (const k of Object.keys(sk)) {
+        if (i >= 300) break;
+        const v = sk[k];
+        if (v === 'have' || v === 'learn' || v === 'never') { out[String(k).slice(0, 80)] = v; i++; }
+      }
+      zdarzenie.skills = out;
+    } else {
+      /* klik w oferte */
+      zdarzenie.portal = String(b.portal || '').slice(0, 40);
+      zdarzenie.tytul = String(b.tytul || '').slice(0, 120);
+      zdarzenie.score = (typeof b.score === 'number') ? Math.round(b.score) : null;
+      zdarzenie.reqCount = (typeof b.reqCount === 'number') ? b.reqCount : null;
+    }
+    const plik = path.join(__dirname, 'stats-events-' + new Date().toISOString().slice(0, 7) + '.jsonl');
+    fs.appendFile(plik, JSON.stringify(zdarzenie) + '\n', () => {});
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ blad: 'Niepoprawne dane' });
+  }
+});
+
 /* reczne uruchomienie synchronizacji (tylko z haslem) */
 const SYNC_TOKEN = process.env.SYNC_TOKEN;
 app.get('/api/sync', (req, res) => {
