@@ -244,7 +244,7 @@ const ICON_LEARN = '<svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h1
 const ICON_NEVER = '<svg class="ic" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const ICON_GO    = '<svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
 
-function saveProfile(){ localStorage.setItem('rokujProfile', JSON.stringify(userSkills)); }
+function saveProfile(){ localStorage.setItem('rokujProfile', JSON.stringify(userSkills)); statProfile(); }
 function loadProfile(){
   try{ const raw = localStorage.getItem('rokujProfile'); if(raw) userSkills = JSON.parse(raw) || {}; }
   catch(e){ userSkills = {}; }
@@ -457,7 +457,7 @@ async function doSearch(reset){
     html += '<div class="job ' + cls + '">' +
       '<span class="match ' + cls + '" title="Rokowanie to poglądowa symulacja dopasowania Twoich oznaczeń do treści ogłoszenia. Nie jest obietnicą ani gwarancją zatrudnienia.">Rokujesz na ' + j.score + '%</span>' +
       '<h3>' + esc(j.title) + '</h3><div class="meta">' + meta + '</div><div>' + tags + '</div>' +
-      '<a class="more" href="' + esc(j.url) + '" target="_blank" rel="noopener">Zobacz ofertę ' + ICON_GO + '</a></div>';
+      '<a class="more" href="' + esc(j.url) + '" target="_blank" rel="noopener" data-portal="' + esc(j.portal) + '" data-tytul="' + esc(j.title) + '" data-score="' + j.score + '" data-req="' + (j.reqCount != null ? j.reqCount : '') + '">Zobacz ofertę ' + ICON_GO + '</a></div>';
   }
   const box = document.getElementById('jobs');
   if(reset) box.innerHTML = html;
@@ -526,6 +526,39 @@ document.getElementById('fSalaryOnly').addEventListener('click', function(){
 });
 
 load();
+
+/* ---------- ANONIMOWE STATYSTYKI ---------- */
+/* losowy identyfikator przegladarki - bez zwiazku z osoba */
+function statUid(){
+  let u = localStorage.getItem('rokujUid');
+  if(!u){ u = 'u' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('rokujUid', u); }
+  return u;
+}
+function sendStat(dane){
+  try{
+    dane.uid = statUid();
+    fetch('/api/stat', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(dane), keepalive:true }).catch(function(){});
+  }catch(e){}
+}
+let lastProfileStat = 0;
+function statProfile(){
+  const teraz = Date.now();
+  if(teraz - lastProfileStat < 30000) return; /* najwyzej raz na 30 sekund */
+  lastProfileStat = teraz;
+  sendStat({ typ:'profil', skills: userSkills });
+}
+/* klik w "Zobacz oferte" */
+document.getElementById('jobs').addEventListener('click', function(ev){
+  const a = ev.target.closest ? ev.target.closest('a.more') : null;
+  if(!a) return;
+  sendStat({ typ:'klik', portal: a.dataset.portal || '', tytul: a.dataset.tytul || '',
+    score: a.dataset.score ? Number(a.dataset.score) : null,
+    reqCount: a.dataset.req ? Number(a.dataset.req) : null });
+});
+/* migawka profilu raz na wizyte (jesli cokolwiek zaznaczone) */
+if(Object.keys(userSkills || {}).length) statProfile();
+   
 </script>
 
 </body>
