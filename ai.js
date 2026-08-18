@@ -379,10 +379,36 @@ async function normalizeExpDirs(allDirs) {
 function eduDirName(d) {
   return groups['EDUDIR:' + norm(d)] || norm(d);
 }
+/* KOREKTY DZIEDZIN: reczne poprawki nakladane ZAWSZE przy odczycie -
+   odporne na nadpisania slownika przez sync; ODRZUC = wpis znika z listy */
+const EXP_FIX = {
+  'praca':'ODRZUC','ogólne':'ODRZUC','obsługa':'ODRZUC','analiza':'ODRZUC',
+  'inżynieria':'ODRZUC','przestrzeganie przepisów':'ODRZUC','zarządzanie':'ODRZUC',
+  'technika':'ODRZUC','technologie':'ODRZUC','technologia':'ODRZUC',
+  'praca w zespole':'ODRZUC','branża':'ODRZUC','operacje':'ODRZUC',
+  'biophysics':'biofizyka','murarskie':'murarstwo','kosmetyka':'kosmetologia',
+  'rachunkowość':'księgowość','leczenie':'medycyna','trybowanie mięsa':'trybowanie',
+  'elektromontera':'elektryka','roboty elektryczne':'elektryka',
+  'technologie ai':'sztuczna inteligencja','aplikacje ai':'sztuczna inteligencja',
+  'infrastruktura ai':'sztuczna inteligencja',
+  'infrastruktura':'infrastruktura it','infrastruktura centrów danych':'infrastruktura it',
+  'obsługa koparek':'obsługa maszyn budowlanych','obsługa koparko-ładowarki':'obsługa maszyn budowlanych',
+  'korzystanie z narzędzi cad':'cad/cam','platform danych':'inżynieria danych',
+  'endpoint engineering':'zarządzanie punktami końcowymi',
+  'konfiguracja platformy veeva vault':'wdrażanie systemów informatycznych',
+  'praca z sap lub innymi systemami mrp':'wdrożenia erp',
+  'projektowanie gier':'tworzenie gier','badania':'badania i rozwój',
+  'obsługa piły panelowej':'stolarstwo','stolarka meblowa':'stolarstwo',
+  'sprzedaż aut terenowych':'handel','sprzedaż drzwi':'handel','prowadzenie sklepu':'handel',
+  'opieka nad ludźmi w podeszłym wieku':'opieka nad osobami starszymi',
+  'praca produkcyjna':'produkcja','prace budowlane':'budownictwo','rynek budowlany':'budownictwo',
+  'utrzymanie czystości':'sprzątanie','doradztwo strategiczne':'doradztwo','doradztwo techniczne':'doradztwo',
+};
 function expDirName(d) {
-  const g = groups['EXP:' + norm(d)];
-  if (g === 'ODRZUC') return null;   /* smiec - pomijamy wpis */
-  return g || norm(d);
+  let g = groups['EXP:' + norm(d)] || norm(d);
+  if (EXP_FIX[g] !== undefined) g = EXP_FIX[g];
+  if (g === 'ODRZUC' || g === 'odrzuc') return null;  /* smiec - pomijamy wpis */
+  return g;
 }
 
 module.exports = { analyzeAll, groupSkills, groupName, loadGroups, normalizeEduDirs, eduDirName, normalizeExpDirs, expDirName };
