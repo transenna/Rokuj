@@ -328,17 +328,14 @@ async function normalizeEduDirs(allDirs) {
 }
 
 /* ---------- NORMALIZACJA DZIEDZIN DOSWIADCZENIA ---------- */
-const EXP_PROMPT = 'Dostaniesz liste dziedzin doswiadczenia zawodowego z ogloszen o prace ' +
-  '(po polsku, rozne formy gramatyczne, czasem literowki lub brak polskich znakow). ' +
-  'Zgrupuj frazy oznaczajace to samo i nadaj grupie krotka nazwe. ZASADY nazwy grupy: ' +
-  'mianownik, male litery, poprawna polszczyzna Z POLSKIMI ZNAKAMI (np. "sprzedaż", nie "sprzedaz"); ' +
-  'DZIEDZINA, nie stanowisko (np. "spedytor międzynarodowy" -> "spedycja międzynarodowa", ' +
-  '"kierowca" -> "prowadzenie pojazdów", "pizzerman" -> "gastronomia"); ' +
-  'synonimy i wersje jezykowe lacz (np. "cybersecurity" i "cyberbezpieczeństwo" -> "cyberbezpieczeństwo", ' +
-  '"e-commerce" i "ecommerce" -> "e-commerce", "test automation" -> "automatyzacja testów"); ' +
-  'frazy bardzo waskie uogolnij (np. "zarządzanie szkółką piłkarską" -> "prowadzenie zajęć sportowych"); ' +
-  'frazy bez tresci ("podobne stanowisko", "technika", "operacje", "praca w zespole") ' +
-  'umiesc w grupie o nazwie "ODRZUC". ' +
+const EXP_PROMPT = 'Dostaniesz JSON: {"istniejace_grupy":[...],"frazy":[...]}. ' +
+  '"frazy" to dziedziny doswiadczenia zawodowego z ogloszen o prace (po polsku, rozne formy, literowki, czasem inne jezyki). ' +
+  'Przypisz KAZDA fraze do grupy. ZASADY: ' +
+  '1) Jesli pasuje ktoras z "istniejace_grupy" (nawet w przyblizeniu) - uzyj DOKLADNIE tej nazwy. Nowa grupe utworz TYLKO, gdy zadna istniejaca nie pasuje. ' +
+  '2) Nazwa grupy: SZEROKA dziedzina (poziom: "księgowość", "spawanie", "logistyka", "marketing"), 1-3 slowa, mianownik, male litery, poprawna polszczyzna Z POLSKIMI ZNAKAMI. ' +
+  '3) DZIEDZINA, nie stanowisko: "spedytor międzynarodowy" -> "spedycja", "kierowca" -> "prowadzenie pojazdów", "pizzerman" -> "gastronomia". ' +
+  '4) Lacz agresywnie: synonimy, odmiany gramatyczne, literowki, wersje jezykowe i mikro-specjalizacje ida do JEDNEJ grupy ("praca magazynowa", "magazynowanie", "praca na magazynie" -> "magazynowanie"; "wdrożenia erp" i "wdrażanie systemów erp" -> "wdrożenia erp"; "development" -> "rozwój oprogramowania"; "svařování" -> "spawanie"; "obsługa minikoparki", "obsługa równiarki" -> "obsługa maszyn budowlanych"). ' +
+  '5) Do grupy "ODRZUC" wrzuc TYLKO frazy, z ktorych nie da sie odczytac zadnej dziedziny: ogolniki ("branża", "technika", "technologia", "analiza", "kontrola", "współpraca", "inżynieria", "konstrukcja", "instalacja", "operacje", "praca w korporacji", "podobne stanowisko"), cechy osobowe i kompetencje miekkie ("komunikatywność", "praca w zespole") oraz frazy niezrozumiale lub uciete. W razie jakichkolwiek watpliwosci NIE odrzucaj - przypisz do najblizszej szerokiej grupy. ' +
   'Zwroc JSON: {"grupy":[{"nazwa":"...","frazy":["..."]}]}.';
 
 async function normalizeExpDirs(allDirs) {
@@ -349,6 +346,11 @@ async function normalizeExpDirs(allDirs) {
   console.log('AI doswiadczenia: ' + unknown.length + ' nowych do znormalizowania');
   for (let i = 0; i < unknown.length; i += 150) {
     const batch = unknown.slice(i, i + 150);
+    /* lista istniejacych nazw grup - zeby AI nie wymyslalo dubli */
+    const znane = Array.from(new Set(
+      Object.keys(groups).filter(k => k.startsWith('EXP:'))
+        .map(k => groups[k]).filter(v => v && v !== 'ODRZUC')
+    )).sort();
     try {
       const resp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -357,7 +359,7 @@ async function normalizeExpDirs(allDirs) {
           model: MODEL, temperature: 0, response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: EXP_PROMPT },
-            { role: 'user', content: JSON.stringify(batch) },
+            { role: 'user', content: JSON.stringify({ istniejace_grupy: znane, frazy: batch }) },
           ],
         }),
       });
