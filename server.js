@@ -560,6 +560,79 @@ app.get('/api/sync', (req, res) => {
   res.json({ info: 'Synchronizacja uruchomiona w tle. Postęp sprawdzisz pod /api/status' });
 });
 
+/* ---------- ZAPLECZE: zagregowane statystyki (haslo = SYNC_TOKEN) ---------- */
+app.get('/api/admin-stats', (req, res) => {
+  if (!SYNC_TOKEN || req.query.haslo !== SYNC_TOKEN) {
+    return res.status(403).json({ blad: 'Brak dostępu' });
+  }
+  try {
+    const dni = {};
+    const zrodla = {};
+    const klikTop = {};
+    const profile = {};   /* uid -> ostatnia migawka kompetencji */
+    const sesje = {};     /* uid|dzien -> pierwsze i ostatnie zdarzenie */
+    let mobile = 0, wizyty = 0;
+    const wszyscyUid = new Set();
+    const files = fs.readdirSync(__dirname)
+      .filter(f => f.startsWith('stats-events-') && f.endsWith('.jsonl')).sort();
+    for (const f of files) {
+      const lines = fs.readFileSync(path.join(__dirname, f), 'utf8').split('\n');
+      for (const ln of lines) {
+        if (!ln.trim()) continue;
+        let e; try { e = JSON.parse(ln); } catch (err) { continue; }
+        const dzien = String(e.t || '').slice(0, 10);
+        if (!dzien) continue;
+        if (!dni[dzien]) dni[dzien] = { uids: new Set(), wizyty: 0, kliki: 0 };
+        if (e.uid) { dni[dzien].uids.add(e.uid); wszyscyUid.add(e.uid); }
+        const klucz = e.uid + '|' + dzien;
+        const ts = Date.parse(e.t) || 0;
+        if (!sesje[klucz]) sesje[klucz] = { min: ts, max: ts };
+        else { if (ts < sesje[klucz].min) sesje[klucz].min = ts; if (ts > sesje[klucz].max) sesje[klucz].max = ts; }
+        if (e.typ === 'wizyta') {
+          dni[dzien].wizyty += 1; wizyty += 1;
+          if (e.mobile) mobile += 1;
+          let z = e.utm_source || '';
+          if (!z && e.ref) { try { z = new URL(e.ref).hostname; } catch (err) { z = 'inne'; } }
+          if (!z) z = 'bezpośrednio';
+          zrodla[z] = (zrodla[z] || 0) + 1;
+        } else if (e.typ === 'klik') {
+          dni[dzien].kliki += 1;
+          const t = (e.tytul || '?') + ' [' + (e.portal || '?') + ']';
+          klikTop[t] = (klikTop[t] || 0) + 1;
+        } else if (e.typ === 'profil' && e.uid) {
+          profile[e.uid] = e.skills || {};
+        }
+      }
+    }
+    const dniLista = Object.keys(dni).sort();
+    const seria = dniLista.map(d => ({ dzien: d, osoby: dni[d].uids.size, wizyty: dni[d].wizyty, kliki: dni[d].kliki }));
+    const skTop = {};
+    for (const uid of Object.keys(profile)) {
+      for (const s of Object.keys(profile[uid])) {
+        if (profile[uid][s] === 'have') skTop[s] = (skTop[s] || 0) + 1;
+      }
+    }
+    const topSkills = Object.entries(skTop).sort((a, b) => b.at(1) - a.at(1)).slice(0, 15);
+    const topKliki = Object.entries(klikTop).sort((a, b) => b.at(1) - a.at(1)).slice(0, 15);
+    const topZrodla = Object.entries(zrodla).sort((a, b) => b.at(1) - a.at(1)).slice(0, 10);
+    let suma = 0, n = 0;
+    for (const k of Object.keys(sesje)) {
+      const dl = sesje[k].max - sesje[k].min;
+      if (dl > 0) { suma += dl; n += 1; }
+    }
+    res.json({
+      osobyLacznie: wszyscyUid.size,
+      wizytyLacznie: wizyty,
+      mobileProc: wizyty ? Math.round(mobile / wizyty * 100) : 0,
+      sredniaSesjaMin: n ? Math.round(suma / n / 60000 * 10) / 10 : 0,
+      profileLacznie: Object.keys(profile).length,
+      seria, topZrodla, topKliki, topSkills,
+    });
+  } catch (e) {
+    res.status(500).json({ blad: 'Błąd agregacji: ' + e.message });
+  }
+});
+
 /* ---------- WYSZUKIWANIE Z PUNKTACJA (stronicowane) ---------- */
 /* wagi skilli wg rzadkosci: czeste = malo mowia, rzadkie = cenne (schodki + widelki) */
 let SKILL_W = {};
