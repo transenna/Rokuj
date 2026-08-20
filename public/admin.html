@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zaplecze – Rokuj.pl</title>
+<link rel="icon" href="favicon.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:#F7F8FA;color:#1F2328;}
+header{background:#fff;border-bottom:1px solid #E5E7EB;padding:14px 24px;display:flex;align-items:center;gap:12px;}
+header img{height:36px;}
+header b{color:#6E1A0E;}
+main{max-width:1000px;margin:24px auto;padding:0 16px 60px;}
+.cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.card{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:14px 18px;flex:1;min-width:150px;}
+.card .big{font-size:1.6rem;font-weight:700;color:#F26B1D;}
+.card .lbl{font-size:.8rem;color:#6B7280;}
+.panel{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;margin-bottom:20px;}
+.panel h2{font-size:1rem;margin:0 0 12px;color:#6E1A0E;}
+#loginBox{max-width:340px;margin:80px auto;text-align:center;}
+#loginBox input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #E5E7EB;border-radius:8px;font:inherit;margin-bottom:10px;}
+#loginBox button{padding:10px 24px;border:0;border-radius:8px;background:#F26B1D;color:#fff;font:inherit;cursor:pointer;}
+#err{color:#B91C1C;font-size:.85rem;min-height:1.2em;}
+table{width:100%;border-collapse:collapse;font-size:.85rem;}
+td,th{padding:6px 8px;border-bottom:1px solid #F3F4F6;text-align:left;}
+td.num{text-align:right;font-weight:600;color:#F26B1D;white-space:nowrap;}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:760px){.split{grid-template-columns:1fr;}}
+.note{font-size:.75rem;color:#9CA3AF;margin-top:6px;}
+</style>
+</head>
+<body>
+<header><img src="logo.png" alt="Rokuj.pl"><b>Zaplecze — statystyki</b></header>
+<main>
+
+<div id="loginBox">
+  <h2>Podaj hasło</h2>
+  <input id="pass" type="password" placeholder="hasło (SYNC_TOKEN)">
+  <div id="err"></div>
+  <button onclick="wejdz()">Wejdź</button>
+</div>
+
+<div id="dash" style="display:none">
+  <div class="cards">
+    <div class="card"><div class="big" id="cOsoby">–</div><div class="lbl">unikalne osoby (łącznie)</div></div>
+    <div class="card"><div class="big" id="cWizyty">–</div><div class="lbl">wejścia na stronę (łącznie)</div></div>
+    <div class="card"><div class="big" id="cProfile">–</div><div class="lbl">osoby z wypełnionym profilem</div></div>
+    <div class="card"><div class="big" id="cMobile">–</div><div class="lbl">wejść z telefonu</div></div>
+    <div class="card"><div class="big" id="cSesja">–</div><div class="lbl">średni czas wizyty (przybliżony)</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Odwiedziny dzień po dniu</h2>
+    <canvas id="chDni" height="90"></canvas>
+    <div class="note">osoby = unikalne przeglądarki danego dnia; wejścia = otwarcia strony; kliki = przejścia do ofert</div>
+  </div>
+
+  <div class="split">
+    <div class="panel">
+      <h2>Skąd przychodzą użytkownicy</h2>
+      <canvas id="chZrodla"></canvas>
+      <div class="note">utm_source z reklam (google / facebook itd.), adres strony odsyłającej albo wejście bezpośrednie</div>
+    </div>
+    <div class="panel">
+      <h2>Najczęściej zaznaczane kompetencje („mam")</h2>
+      <canvas id="chSkille"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Najczęściej klikane oferty</h2>
+    <table id="tKliki"><tr><th>Oferta</th><th class="num">kliknięć</th></tr></table>
+  </div>
+</div>
+
+<script>
+let charts = [];
+function wejdz(){
+  const h = document.getElementById('pass').value.trim();
+  if(!h) return;
+  sessionStorage.setItem('rokujAdmin', h);
+  laduj(h);
+}
+async function laduj(h){
+  document.getElementById('err').textContent = '';
+  let d;
+  try{
+    const r = await fetch('/api/admin-stats?haslo=' + encodeURIComponent(h));
+    d = await r.json();
+    if(!r.ok){ throw new Error(d.blad || ('HTTP ' + r.status)); }
+  }catch(e){
+    document.getElementById('err').textContent = 'Nie udało się: ' + e.message;
+    sessionStorage.removeItem('rokujAdmin');
+    return;
+  }
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('dash').style.display = '';
+  document.getElementById('cOsoby').textContent = d.osobyLacznie;
+  document.getElementById('cWizyty').textContent = d.wizytyLacznie;
+  document.getElementById('cProfile').textContent = d.profileLacznie;
+  document.getElementById('cMobile').textContent = d.mobileProc + '%';
+  document.getElementById('cSesja').textContent = d.sredniaSesjaMin + ' min';
+  for(const c of charts) c.destroy();
+  charts = [];
+  const POM = '#F26B1D', BRAZ = '#6E1A0E', SZAR = '#9CA3AF';
+  const ost30 = d.seria.slice(-30);
+  charts.push(new Chart(document.getElementById('chDni'), {
+    type: 'line',
+    data: { labels: ost30.map(x => x.dzien.slice(5)),
+      datasets: [
+        { label: 'osoby', data: ost30.map(x => x.osoby), borderColor: POM, backgroundColor: POM, tension: .3 },
+        { label: 'wejścia', data: ost30.map(x => x.wizyty), borderColor: BRAZ, backgroundColor: BRAZ, tension: .3 },
+        { label: 'kliki w oferty', data: ost30.map(x => x.kliki), borderColor: SZAR, backgroundColor: SZAR, tension: .3 },
+      ]},
+    options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  }));
+  charts.push(new Chart(document.getElementById('chZrodla'), {
+    type: 'doughnut',
+    data: { labels: d.topZrodla.map(x => x[0]),
+      datasets: [{ data: d.topZrodla.map(x => x[1]),
+        backgroundColor: ['#F26B1D','#6E1A0E','#FBBF77','#9CA3AF','#D1D5DB','#FDE68A','#A78BFA','#60A5FA','#34D399','#F87171'] }] },
+    options: { plugins: { legend: { position: 'bottom' } } }
+  }));
+  charts.push(new Chart(document.getElementById('chSkille'), {
+    type: 'bar',
+    data: { labels: d.topSkills.map(x => x[0]),
+      datasets: [{ data: d.topSkills.map(x => x[1]), backgroundColor: POM }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+  }));
+  const t = document.getElementById('tKliki');
+  while(t.rows.length > 1) t.deleteRow(1);
+  for(const [nazwa, ile] of d.topKliki){
+    const r = t.insertRow();
+    r.insertCell().textContent = nazwa;
+    const c = r.insertCell(); c.textContent = ile; c.className = 'num';
+  }
+}
+document.getElementById('pass').addEventListener('keydown', function(e){ if(e.key === 'Enter') wejdz(); });
+const zapamietane = sessionStorage.getItem('rokujAdmin');
+if(zapamietane){ document.getElementById('pass').value = zapamietane; laduj(zapamietane); }
+</script>
+</body>
+</html>
