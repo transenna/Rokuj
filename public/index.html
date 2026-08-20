@@ -202,6 +202,26 @@ footer a{color:#9CA3AF;}
         <svg class="ic" viewBox="0 0 24 24"><path d="M12 2v20M17 6H9.5a3 3 0 0 0 0 6h5a3 3 0 0 1 0 6H6"/></svg>
         z zarobkami
       </button>
+
+      <input id="fMinSalary" type="number" min="0" step="500" placeholder="min. zł/mies." style="width:110px">
+      <select id="fPoziom">
+        <option value="">poziom: dowolny</option>
+        <option value="praktykant">praktykant</option>
+        <option value="junior">junior</option>
+        <option value="specjalista">specjalista</option>
+        <option value="senior">senior</option>
+        <option value="kierownik">kierownik</option>
+        <option value="dyrektor">dyrektor</option>
+      </select>
+      <select id="fForma">
+        <option value="">umowa: dowolna</option>
+        <option value="umowa o pracę">umowa o pracę</option>
+        <option value="umowa zlecenie">umowa zlecenie</option>
+        <option value="umowa o dzieło">umowa o dzieło</option>
+        <option value="b2b">B2B</option>
+        <option value="staż/praktyka">staż / praktyka</option>
+      </select>
+       
       <button id="btnAdvise">💡 Co mi podpowiesz?</button>
       <span class="range-wrap">
         min. rokowanie
@@ -430,6 +450,9 @@ async function doSearch(reset){
     dir: sortDir,
     minScore: parseInt(document.getElementById('fScore').value, 10),
     remote: remoteOnly, salaryOnly: salaryOnly,
+   minSalary: parseInt(document.getElementById('fMinSalary').value, 10) || 0,
+    poziom: document.getElementById('fPoziom').value,
+    forma: document.getElementById('fForma').value,
     skills: userSkills, page: page, size: 50,
   };
   let data;
@@ -524,7 +547,9 @@ document.getElementById('fRemote').addEventListener('click', function(){
 document.getElementById('fSalaryOnly').addEventListener('click', function(){
   salaryOnly = !salaryOnly; this.classList.toggle('on', salaryOnly); doSearch(true);
 });
-
+document.getElementById('fMinSalary').addEventListener('input', debouncedSearch);
+document.getElementById('fPoziom').addEventListener('change', function(){ doSearch(true); });
+document.getElementById('fForma').addEventListener('change', function(){ doSearch(true); });
 load();
 
 /* ---------- ANONIMOWE STATYSTYKI ---------- */
