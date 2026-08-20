@@ -95,7 +95,9 @@ function hashText(text) {
 
 /* ---------- INSTRUKCJA DLA AI ---------- */
 const PROMPT = 'Jestes ekspertem HR. Przeczytaj ogloszenie o prace i zwroc JSON:\n' +
-  '{"kompetencje":[{"nazwa":"...","kategoria":"..."}],' +
+  '{"kompetencje":[{"nazwa":"...","kategoria":"...","waga":"..."}],' +
+  '"poziom_stanowiska":"..." albo null,' +
+  '"formy_zatrudnienia":["..."] albo [],' +
   '"wyksztalcenie":{"poziom":"...","kierunek":"..."} albo null,' +
   '"doswiadczenie":[{"dziedzina":"...","lata":liczba albo null}] albo [],' +
   '"stawka":"..." albo null}\n' +
@@ -104,6 +106,7 @@ const PROMPT = 'Jestes ekspertem HR. Przeczytaj ogloszenie o prace i zwroc JSON:
   '- NIE umieszczaj tu wyksztalcenia ani doswiadczenia (maja osobne pola)\n' +
   '- "nazwa": krotko, po polsku, w mianowniku, dokladnie wg tresci (nie wymyslaj)\n' +
   '- "kategoria": wybierz JEDNA z listy: ' + KATEGORIE.join(' | ') + '\n' +
+    '- "waga": "kluczowa" jesli wymog konieczny/wymagany; "dodatkowa" jesli mile widziane, atut, plus; w razie watpliwosci "kluczowa"\n' +
   'ZASADY dla "wyksztalcenie" (null jesli brak wymogu):\n' +
   '- "poziom": podstawowe | zawodowe | srednie | wyzsze\n' +
   '- "kierunek": nazwa kierunku jesli wymagany kierunkowy; null jesli dowolny\n' +
@@ -118,7 +121,11 @@ const PROMPT = 'Jestes ekspertem HR. Przeczytaj ogloszenie o prace i zwroc JSON:
   '- "lata": liczba lat jesli podana (np. "min. 2 lata" -> 2), inaczej null\n' +
 
   'ZASADY dla "stawka":\n' +
-  '- tylko jesli podano kwote wynagrodzenia; przepisz np. "5 000 - 7 000 zl/mies. brutto"; brak = null';
+  '- tylko jesli podano kwote wynagrodzenia; przepisz np. "5 000 - 7 000 zl/mies. brutto";   'brak = null\n' +
+  'ZASADY dla "poziom_stanowiska":\n' +
+  '- wywnioskuj z tytulu i tresci; DOKLADNIE jedna z: praktykant | junior | specjalista | senior | kierownik | dyrektor; null jesli nie da sie okreslic\n' +
+  'ZASADY dla "formy_zatrudnienia":\n' +
+  '- wypisz WSZYSTKIE wymienione w ofercie; DOKLADNIE z listy: umowa o pracę | umowa zlecenie | umowa o dzieło | b2b | staż/praktyka; pusta lista jesli nie podano';
 
 async function askAI(text) {
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -152,8 +159,7 @@ function toResult(raw) {
     const label = (k && k.nazwa) ? String(k.nazwa).trim() : '';
     if (!label || label.length < 3) continue;
     const cat = KATEGORIE.includes(k.kategoria) ? k.kategoria : 'Kompetencje uniwersalne';
-    skills.push({ o: label, k: canonical(label), cat: cat });
-  }
+    skills.push({ o: label, k: canonical(label), cat: cat, w: (k.waga === 'dodatkowa') ? 'd' : 'k' });  }
   let edu = null;
   if (raw.wyksztalcenie && raw.wyksztalcenie.poziom) {
     const p = norm(raw.wyksztalcenie.poziom).replace('srednie', 'średnie').replace('wyzsze', 'wyższe');
@@ -175,8 +181,16 @@ function toResult(raw) {
   }
 
   const salary = raw.stawka ? String(raw.stawka).trim() : null;
-  return { skills, edu, exp, salary };
-}
+  const POZIOMY = ['praktykant', 'junior', 'specjalista', 'senior', 'kierownik', 'dyrektor'];
+  let poziom = raw.poziom_stanowiska ? norm(String(raw.poziom_stanowiska)) : null;
+  if (!POZIOMY.includes(poziom)) poziom = null;
+  const FORMY = ['umowa o pracę', 'umowa zlecenie', 'umowa o dzieło', 'b2b', 'staż/praktyka'];
+  const formy = [];
+  for (const f of (raw.formy_zatrudnienia || [])) {
+    const x = norm(String(f));
+    if (FORMY.includes(x) && !formy.includes(x)) formy.push(x);
+  }
+  return { skills, edu, exp, salary, poziom, formy };}
 
 /* ---------- GLOWNA FUNKCJA: analiza listy ofert ---------- */
 async function analyzeAll(offers) {
