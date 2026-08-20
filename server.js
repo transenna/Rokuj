@@ -509,8 +509,7 @@ app.post('/api/stat', (req, res) => {
   try {
     const b = req.body || {};
     const typ = String(b.typ || '');
-    if (typ !== 'profil' && typ !== 'klik') return res.status(400).json({ blad: 'Nieznany typ' });
-    const zdarzenie = {
+    if (typ !== 'profil' && typ !== 'klik' && typ !== 'wizyta') return res.status(400).json({ blad: 'Nieznany typ' });    const zdarzenie = {
       t: new Date().toISOString(),
       typ: typ,
       uid: String(b.uid || '').slice(0, 40),
@@ -526,12 +525,19 @@ app.post('/api/stat', (req, res) => {
         if (v === 'have' || v === 'learn' || v === 'never') { out[String(k).slice(0, 80)] = v; i++; }
       }
       zdarzenie.skills = out;
-    } else {
+      } else if (typ === 'klik') {
       /* klik w oferte */
       zdarzenie.portal = String(b.portal || '').slice(0, 40);
       zdarzenie.tytul = String(b.tytul || '').slice(0, 120);
       zdarzenie.score = (typeof b.score === 'number') ? Math.round(b.score) : null;
       zdarzenie.reqCount = (typeof b.reqCount === 'number') ? b.reqCount : null;
+    }
+    if (typ === 'wizyta') {
+      zdarzenie.ref = String(b.ref || '').slice(0, 200);
+      zdarzenie.utm_source = String(b.utm_source || '').slice(0, 60);
+      zdarzenie.utm_medium = String(b.utm_medium || '').slice(0, 60);
+      zdarzenie.utm_campaign = String(b.utm_campaign || '').slice(0, 60);
+      zdarzenie.mobile = !!b.mobile;
     }
     const plik = path.join(__dirname, 'stats-events-' + new Date().toISOString().slice(0, 7) + '.jsonl');
     fs.appendFile(plik, JSON.stringify(zdarzenie) + '\n', () => {});
