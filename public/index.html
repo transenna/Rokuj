@@ -573,6 +573,20 @@ function statProfile(){
   lastProfileStat = teraz;
   sendStat({ typ:'profil', skills: userSkills });
 }
+
+/* zdarzenie "wizyta" - raz na wejscie: skad przyszedl uzytkownik */
+(function(){
+  try{
+    const p = new URLSearchParams(location.search);
+    sendStat({ typ:'wizyta',
+      ref: (document.referrer || '').slice(0, 200),
+      utm_source: (p.get('utm_source') || '').slice(0, 60),
+      utm_medium: (p.get('utm_medium') || '').slice(0, 60),
+      utm_campaign: (p.get('utm_campaign') || '').slice(0, 60),
+      mobile: window.innerWidth < 700 });
+  }catch(e){}
+})();
+   
 /* klik w "Zobacz oferte" */
 document.getElementById('jobs').addEventListener('click', function(ev){
   const a = ev.target.closest ? ev.target.closest('a.more') : null;
