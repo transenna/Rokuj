@@ -391,8 +391,18 @@ async function normalizeExpDirs(allDirs) {
   saveGroups();
 }
 
+/* KOREKTY KIERUNKOW: reczne poprawki przy odczycie (jak EXP_FIX) */
+const EDU_FIX = {
+  'biuro':'ODRZUC','branżowa':'ODRZUC','technik':'ODRZUC','obróbka':'ODRZUC',
+  'sztuki piękne':'sztuka','kucharstwo':'gastronomia',
+  'technologia informacyjna':'informatyka','teletechnika':'telekomunikacja',
+  'odzież':'krawiectwo','masaże':'masaż',
+};
 function eduDirName(d) {
-  return groups['EDUDIR:' + norm(d)] || norm(d);
+  let g = groups['EDUDIR:' + norm(d)] || norm(d);
+  if (EDU_FIX[g] !== undefined) g = EDU_FIX[g];
+  if (g === 'ODRZUC' || g === 'odrzuc') return null;   /* smiec - pomijamy */
+  return g;
 }
 /* KOREKTY DZIEDZIN: reczne poprawki nakladane ZAWSZE przy odczycie -
    odporne na nadpisania slownika przez sync; ODRZUC = wpis znika z listy */
