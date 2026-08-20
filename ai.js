@@ -121,7 +121,8 @@ const PROMPT = 'Jestes ekspertem HR. Przeczytaj ogloszenie o prace i zwroc JSON:
   '- "lata": liczba lat jesli podana (np. "min. 2 lata" -> 2), inaczej null\n' +
 
   'ZASADY dla "stawka":\n' +
-  '- tylko jesli podano kwote wynagrodzenia; przepisz np. "5 000 - 7 000 zl/mies. brutto";   'brak = null\n' +
+  '- tylko jesli podano kwote wynagrodzenia; przepisz np. "5 000 - 7 000 zl/mies. brutto"; ' +
+  'brak = null\n' +
   'ZASADY dla "poziom_stanowiska":\n' +
   '- wywnioskuj z tytulu i tresci; DOKLADNIE jedna z: praktykant | junior | specjalista | senior | kierownik | dyrektor; null jesli nie da sie okreslic\n' +
   'ZASADY dla "formy_zatrudnienia":\n' +
