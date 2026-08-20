@@ -583,6 +583,65 @@ document.getElementById('jobs').addEventListener('click', function(ev){
 });
 /* migawka profilu raz na wizyte (jesli cokolwiek zaznaczone) */
 if(Object.keys(userSkills || {}).length) statProfile();
+
+/* ---------- WYSZUKIWARKA KOMPETENCJI ---------- */
+/* pole "szukaj" nad panelem; wpisywanie zweza liste, czyszczenie przywraca calosc */
+function skillNorm(s){
+  return String(s).toLowerCase().replace(/ł/g,'l')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function applySkillFilter(){
+  const inp = document.getElementById('skillFinder');
+  if(!inp) return;
+  const q = skillNorm(inp.value.trim());
+  const cont = inp.nextElementSibling; /* kontener listy - pole wstawiamy tuz przed nim */
+  if(!cont) return;
+  const dets = cont.querySelectorAll('details');
+  for(const d of dets){
+    let anyInCat = false;
+    /* podkategorie */
+    for(const sc of d.querySelectorAll('.subcat')){
+      const headB = sc.querySelector('.subcat-head b');
+      const headMatch = q && headB && skillNorm(headB.textContent).includes(q);
+      let anyInSub = false;
+      for(const r of sc.querySelectorAll('.skill-row[data-skill]')){
+        const show = !q || headMatch || skillNorm(r.dataset.skill).includes(q);
+        r.style.display = show ? '' : 'none';
+        if(show) anyInSub = true;
+      }
+      sc.style.display = (!q || anyInSub) ? '' : 'none';
+      if(anyInSub) anyInCat = true;
+    }
+    /* pozycje bez podkategorii (bezposrednio w kategorii) */
+    for(const r of d.querySelectorAll('.skill-row[data-skill]')){
+      if(r.closest('.subcat')) continue;
+      const show = !q || skillNorm(r.dataset.skill).includes(q);
+      r.style.display = show ? '' : 'none';
+      if(show) anyInCat = true;
+    }
+    d.style.display = (!q || anyInCat) ? '' : 'none';
+    if(q){ d.open = true; }
+    else if(d.dataset.cat){ d.open = !!openCats[d.dataset.cat]; }
+  }
+}
+function initSkillFinder(){
+  if(document.getElementById('skillFinder')) return true;
+  const firstCat = document.querySelector('details[data-cat]');
+  if(!firstCat) return false; /* lista jeszcze sie nie narysowala */
+  const cont = firstCat.parentElement;
+  const inp = document.createElement('input');
+  inp.id = 'skillFinder';
+  inp.type = 'search';
+  inp.placeholder = '🔍 szukaj kompetencji...';
+  inp.style.cssText = 'width:100%;box-sizing:border-box;margin:0 0 10px;padding:8px 10px;' +
+    'border:1px solid #E5E7EB;border-radius:8px;font:inherit;';
+  cont.parentElement.insertBefore(inp, cont);
+  inp.addEventListener('input', applySkillFilter);
+  /* po kazdym przerysowaniu listy (zmiana zaznaczenia) filtr nakladamy ponownie */
+  new MutationObserver(function(){ applySkillFilter(); }).observe(cont, { childList:true, subtree:false });
+  return true;
+}
+const sfTimer = setInterval(function(){ if(initSkillFinder()) clearInterval(sfTimer); }, 400);
    
 </script>
 
