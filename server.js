@@ -365,6 +365,18 @@ async function syncAll() {
         url: r.url,
         skills: r.ai ? Array.from(new Set(r.ai.skills.map(s => groupName(s.k)).filter(g => g !== '__ODRZUC__'))) : [],
         skillsOrig: r.ai ? r.ai.skills.map(s => ({ o: s.o, k: groupName(s.k) })).filter(t => t.k !== '__ODRZUC__') : [],
+            skillsW: (function(){
+      const m = {};
+      if (r.ai) for (const s of r.ai.skills) {
+        const g = groupName(s.k);
+        if (g === '__ODRZUC__') continue;
+        const w = (s.w === 'd') ? 'd' : 'k';
+        if (m[g] !== 'k') m[g] = w;
+      }
+      return m;
+    })(),
+    poziom: (r.ai && r.ai.poziom) ? r.ai.poziom : null,
+    formy: (r.ai && r.ai.formy) ? r.ai.formy : [],
         edu: (r.ai && r.ai.edu) ? { poziom: r.ai.edu.poziom, kierunek: (function(){
           let k = r.ai.edu.kierunek ? eduDirName(r.ai.edu.kierunek) : null;
           if (!k) return null;
@@ -574,10 +586,11 @@ function scoreJob(j, userSkills) {
   const sk = j.skills || [];
   let have = 0, learn = 0, total = 0, reqCount = 0, blocked = false;
   for (const s of sk) {
-    const w = SKILL_W[s] || 1.0;
+    const imp = (j.skillsW && j.skillsW[s] === 'd') ? 0.4 : 1.0; /* mile widziane wazy mniej */
+    const w = (SKILL_W[s] || 1.0) * imp;
     total += w; reqCount += 1;
     const st = userSkills[s];
-    if (st === 'never') blocked = true;
+    if (st === 'never') { if (imp === 1.0) blocked = true; }     /* "nie nabede" blokuje tylko kluczowe */
     else if (st === 'have') have += w;
     else if (st === 'learn') learn += w;
   }
@@ -624,6 +637,9 @@ app.post('/api/search', (req, res) => {
     if (b.portal && j.portal !== b.portal) continue;
     if (b.remote && !j.remote) continue;
     if (b.salaryOnly && !j.salary) continue;
+    if (b.minSalary && salaryNum(j.salary) < b.minSalary) continue;
+    if (b.poziom && j.poziom !== b.poziom) continue;
+    if (b.forma && !(j.formy || []).includes(b.forma)) continue;
     const r = scoreJob(j, userSkills);
     if (r.score < 0) continue;
     if (b.minScore && r.score < b.minScore) continue;
@@ -692,7 +708,7 @@ function missingItems(j, userSkills) {
   const missing = [];
   for (const s of (j.skills || [])) {
     const st = userSkills[s];
-    if (st === 'never') blocked = true;
+    if (st === 'never') { if (!(j.skillsW && j.skillsW[s] === 'd')) blocked = true; }
     else if (st !== 'have' && st !== 'learn') missing.push(s);
   }
   if (j.edu && j.edu.poziom) {
