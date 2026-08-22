@@ -395,6 +395,7 @@ async function normalizeExpDirs(allDirs) {
 const EDU_FIX = {
   'biuro':'ODRZUC','branżowa':'ODRZUC','technik':'ODRZUC','obróbka':'ODRZUC',
   'sztuki piękne':'sztuka','kucharstwo':'gastronomia',
+  'metrologiczny':'metrologia',
   'technologia informacyjna':'informatyka','teletechnika':'telekomunikacja',
   'odzież':'krawiectwo','masaże':'masaż',
 };
