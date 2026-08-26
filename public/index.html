@@ -10,16 +10,18 @@
 
 <style>
 :root{
-  --accent:#F26B1D;
-  --accent-soft:#FDEBDD;
+  --accent:#E8A317;
+  --accent-soft:#FCF3DF;
   --ink:#1F2328;
   --ink-soft:#6B7280;
   --bg:#F7F8FA;
   --card:#FFFFFF;
   --line:#E5E7EB;
-  --ok:#16A34A;   --ok-bg:#EAF7EE;
-  --warn:#B45309; --warn-bg:#FEF3E2;
-  --bad:#B91C1C;  --bad-bg:#FDEAEA;
+  --ok:#E8A317;   --ok-bg:#FCF3DF;
+  --warn:#9A6B00; --warn-bg:#FBF0D9;
+  --bad:#DC2626;  --bad-bg:#FDEAEA;
+  --navy:#1E3A5C;
+  --mid:#D97706;  --mid-bg:#FCEBD3;
   --radius:14px;
   --shadow:0 1px 3px rgba(16,24,40,.06),0 4px 14px rgba(16,24,40,.05);
 }
@@ -27,14 +29,14 @@
 body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;
   background:var(--bg);color:var(--ink);line-height:1.45;}
 
-header.brand{background:var(--card);border-bottom:1px solid var(--line);box-shadow:var(--shadow);}
+header.brand{background:var(--navy);border-bottom:none;box-shadow:var(--shadow);}
 .brand-inner{max-width:1200px;margin:0 auto;padding:20px 24px;
   display:flex;align-items:center;gap:22px;}
 .brand-inner img{height:52px;display:block;}
-.brand-divider{width:1px;align-self:stretch;background:var(--line);}
+.brand-divider{width:1px;align-self:stretch;background:rgba(255,255,255,.25);}
 .claim{display:flex;flex-direction:column;justify-content:center;font-size:1.02rem;}
-.claim .l1{font-weight:750;color:var(--ink);}
-.claim .l2{font-weight:400;color:var(--accent);}
+.claim .l1{font-weight:750;color:#FFFFFF;}
+.claim .l2{font-weight:400;color:#F0B840;}
 @media (max-width:560px){
   .brand-inner{flex-direction:column;gap:10px;text-align:center;padding:16px;}
   .brand-divider{display:none;}
@@ -61,7 +63,7 @@ aside .hint{font-size:.8rem;color:var(--ink-soft);margin:0 0 14px;}
 .howto .lg{display:flex;align-items:center;gap:8px;color:var(--ink-soft);}
 .howto i{font-style:normal;width:18px;height:18px;border-radius:50%;color:#fff;flex-shrink:0;
   display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
-.howto .lg-have{background:var(--ok);} .howto .lg-learn{background:var(--accent);} .howto .lg-never{background:var(--bad);}
+.howto .lg-have{background:var(--ok);} .howto .lg-learn{background:var(--mid);} .howto .lg-never{background:var(--bad);}
 .howto small{color:#9CA3AF;font-size:.75rem;}
 details{border-top:1px solid var(--line);}
 details:first-of-type{border-top:none;}
@@ -85,8 +87,8 @@ details[open] summary::before{transform:rotate(45deg);}
   border:1.5px solid var(--line);background:var(--card);color:#B6BCC6;
   display:inline-flex;align-items:center;justify-content:center;transition:all .12s;padding:0;}
 .toggle button:hover{border-color:#9CA3AF;color:#6B7280;}
-.toggle .have.active{background:var(--ok);border-color:var(--ok);color:#fff;}
-.toggle .learn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.toggle .have.active{background:#E8A317;border-color:#E8A317;color:var(--navy);}
+.toggle .learn.active{background:var(--mid);border-color:var(--mid);color:#fff;}
 .toggle .never.active{background:var(--bad);border-color:var(--bad);color:#fff;}
 .reset-btn{margin-top:16px;width:100%;padding:9px;border-radius:10px;
   border:1px solid var(--line);background:var(--card);color:var(--ink-soft);
@@ -105,7 +107,7 @@ input:focus,select:focus{outline:2px solid var(--accent-soft);border-color:var(-
   padding:9px 14px;cursor:pointer;font-size:.9rem;color:var(--ink-soft);
   display:inline-flex;align-items:center;gap:7px;font-family:inherit;}
 #fRemote:hover,#fSalaryOnly:hover{border-color:var(--accent);color:var(--accent);}
-#fRemote.on,#fSalaryOnly.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+#fRemote.on,#fSalaryOnly.on{background:var(--navy);color:#fff;border-color:var(--navy);}
 .range-wrap{display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-soft);}
 input[type=range]{accent-color:var(--accent);padding:0;border:none;}
 #stats{color:var(--ink-soft);font-size:.86rem;margin:0 4px 12px;}
@@ -127,33 +129,35 @@ input[type=range]{accent-color:var(--accent);padding:0;border:none;}
 .job .meta{color:var(--ink-soft);font-size:.86rem;margin-bottom:10px;
   display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
 .meta .dot{width:3px;height:3px;border-radius:50%;background:#C9CDD4;}
-  .meta .salary{color:var(--ok);font-weight:600;}
-.job a.more{color:var(--accent);font-weight:600;text-decoration:none;
+  .meta .salary{color:var(--navy);font-weight:700;}
+.job a.more{background:var(--navy);color:#fff;font-weight:600;text-decoration:none;border-radius:10px;padding:8px 18px;
   display:inline-flex;align-items:center;gap:5px;margin-top:12px;font-size:.9rem;}
-.job a.more:hover{text-decoration:underline;}
+.job a.more:hover{background:#16304D;text-decoration:none;}
 .match{float:right;border-radius:999px;font-weight:700;font-size:.78rem;
   padding:4px 12px;margin-left:10px;}
-.match.high{background:var(--ok-bg);color:var(--ok);}
+.match.high{background:#2563EB;color:#fff;}
 .match.mid{background:var(--warn-bg);color:var(--warn);}
 .match.low{background:#F0F1F3;color:var(--ink-soft);}
-.badge{background:var(--accent-soft);color:var(--accent);
+.badge{background:#F0F1F3;color:var(--ink-soft);
   border-radius:999px;padding:2px 10px;font-size:.75rem;font-weight:700;}
-.tag{display:inline-block;background:#F0F1F3;color:var(--ink-soft);
+.tag{display:inline-block;background:#F0F1F3;color:#374151;
   border-radius:999px;padding:3px 11px;font-size:.78rem;margin:2px 4px 2px 0;}
-.tag.have{background:var(--ok-bg);color:var(--ok);}
-.tag.learn{background:var(--accent-soft);color:var(--accent);}
+.tag.have{background:#FAEDCB;color:#B07800;font-weight:600;}
+.tag.learn{background:var(--mid-bg);color:#8F4A04;}
 .tag.never{background:var(--bad-bg);color:var(--bad);}
 .empty{text-align:center;color:var(--ink-soft);background:var(--card);
   border:1px dashed var(--line);border-radius:var(--radius);padding:44px 20px;}
 footer{text-align:center;color:#9CA3AF;font-size:.8rem;padding:26px;}
 footer a{color:#9CA3AF;}
+#btnAdvise{background:#E8940A;color:#FFFFFF;border-color:#E8940A;font-weight:700;}
+#btnAdvise:hover{background:#D08508;color:#FFFFFF;border-color:#D08508;}
 </style>
 </head>
 <body>
 
 <header class="brand">
   <div class="brand-inner">
-    <img src="logo.png" alt="Rokuj.pl">
+    <img src="logo2.png" alt="Rokuj.pl">
     <div class="brand-divider"></div>
     <div class="claim">
       <span class="l1">Praca, do której się nadajesz.</span>
