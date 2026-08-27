@@ -466,6 +466,7 @@ async function doSearch(reset){
   }catch(e){ return; }
   lastTotal = data.total;
   document.getElementById('stats').textContent = 'Znaleziono ' + data.total + ' z ' + META.total + ' ofert';
+   const hasProfile = Object.keys(userSkills || {}).length > 0;
   let html = '';
   for(const j of data.jobs){
     const cls = j.score >= 70 ? 'high' : (j.score >= 40 ? 'mid' : 'low');
@@ -482,8 +483,9 @@ async function doSearch(reset){
     if(j.age != null){ meta += '<span class="dot"></span><span>' + ageText(j.age) + '</span>'; }
     meta += '<span class="dot"></span><span class="badge">' + esc(j.portal) + '</span>';
     html += '<div class="job ' + cls + '">' +
-      '<span class="match ' + cls + '" title="Rokowanie to poglądowa symulacja dopasowania Twoich oznaczeń do treści ogłoszenia. Nie jest obietnicą ani gwarancją zatrudnienia.">Rokujesz na ' + j.score + '%</span>' +
-      '<h3>' + esc(j.title) + '</h3><div class="meta">' + meta + '</div><div>' + tags + '</div>' +
+      (hasProfile
+        ? '<span class="match ' + cls + '" title="Rokowanie to poglądowa symulacja dopasowania Twoich oznaczeń do treści ogłoszenia. Nie jest obietnicą ani gwarancją zatrudnienia.">Rokujesz na ' + j.score + '%</span>'
+        : '<span class="match low" title="Zaznacz swoje kompetencje w panelu po lewej stronie, aby zobaczyć, jak rokujesz na tę ofertę.">Rokujesz na&nbsp;.....</span>') +      '<h3>' + esc(j.title) + '</h3><div class="meta">' + meta + '</div><div>' + tags + '</div>' +
       '<a class="more" href="' + esc(j.url) + '" target="_blank" rel="noopener" data-portal="' + esc(j.portal) + '" data-tytul="' + esc(j.title) + '" data-score="' + j.score + '" data-req="' + (j.reqCount != null ? j.reqCount : '') + '">Zobacz ofertę ' + ICON_GO + '</a></div>';
   }
   const box = document.getElementById('jobs');
