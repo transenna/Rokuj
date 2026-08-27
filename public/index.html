@@ -485,7 +485,7 @@ async function doSearch(reset){
     html += '<div class="job ' + cls + '">' +
       (hasProfile
         ? '<span class="match ' + cls + '" title="Rokowanie to poglądowa symulacja dopasowania Twoich oznaczeń do treści ogłoszenia. Nie jest obietnicą ani gwarancją zatrudnienia.">Rokujesz na ' + j.score + '%</span>'
-        : '<span class="match low" title="Zaznacz swoje kompetencje w panelu po lewej stronie, aby zobaczyć, jak rokujesz na tę ofertę.">Rokujesz na&nbsp;.....</span>') +      '<h3>' + esc(j.title) + '</h3><div class="meta">' + meta + '</div><div>' + tags + '</div>' +
+        : '<span class="match low" title="Zaznacz swoje kompetencje w panelu po lewej stronie, aby zobaczyć, jak rokujesz na tę ofertę.">Rokujesz na.....</span>') +      '<h3>' + esc(j.title) + '</h3><div class="meta">' + meta + '</div><div>' + tags + '</div>' +
       '<a class="more" href="' + esc(j.url) + '" target="_blank" rel="noopener" data-portal="' + esc(j.portal) + '" data-tytul="' + esc(j.title) + '" data-score="' + j.score + '" data-req="' + (j.reqCount != null ? j.reqCount : '') + '">Zobacz ofertę ' + ICON_GO + '</a></div>';
   }
   const box = document.getElementById('jobs');
