@@ -676,11 +676,12 @@ const sfTimer = setInterval(function(){ if(initSkillFinder()) clearInterval(sfTi
     'cursor:pointer;box-shadow:0 1px 3px rgba(16,24,40,.06);';
   aside.parentElement.insertBefore(btn, aside);
   var maProfil = Object.keys(userSkills || {}).length > 0;
-  var otwarty = !maProfil;                          /* nowy uzytkownik: panel otwarty */
+  var otwarty = false;                              /* na telefonie zawsze startujemy zwiniete */
   function rysuj(){
     aside.style.display = otwarty ? '' : 'none';
     btn.textContent = otwarty ? '▲ Zwiń panel kompetencji'
-                              : '🎯 Twoje kompetencje — zaznacz lub zmień';
+                              : (maProfil ? '🎯 Twoje kompetencje — zmień zaznaczenia'
+                                          : '🎯 Zaznacz swoje kompetencje i sprawdź, gdzie rokujesz');
   }
   btn.addEventListener('click', function(){ otwarty = !otwarty; rysuj(); });
   rysuj();
