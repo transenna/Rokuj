@@ -672,19 +672,20 @@ const sfTimer = setInterval(function(){ if(initSkillFinder()) clearInterval(sfTi
   var btn = document.createElement('button');
   btn.id = 'panelToggle';
   btn.style.cssText = 'width:100%;margin:0 0 12px;padding:13px 16px;border:none;' +
-    'border-radius:12px;background:#16304D;font:inherit;font-weight:700;color:#fff;' +
-    'cursor:pointer;box-shadow:0 2px 8px rgba(22,48,77,.25);' +
+    'border-radius:12px;background:#E8940A;font:inherit;font-weight:700;color:#fff;' +
+    'cursor:pointer;box-shadow:0 2px 8px rgba(232,148,10,.35);' +
     'display:flex;justify-content:space-between;align-items:center;gap:10px;';
   aside.parentElement.insertBefore(btn, aside);
-  var maProfil = Object.keys(userSkills || {}).length > 0;
   var otwarty = false;                              /* na telefonie zawsze startujemy zwiniete */
   function rysuj(){
     aside.style.display = otwarty ? '' : 'none';
+    var maProfil = Object.keys(userSkills || {}).length > 0;
     var napis = otwarty ? 'Zwiń panel kompetencji'
                         : (maProfil ? 'Twoje kompetencje — zmień zaznaczenia'
                                     : 'Zaznacz kompetencje i sprawdź, gdzie rokujesz');
     btn.innerHTML = '<span>🎯 ' + napis + '</span><span style="font-size:.8rem">' + (otwarty ? '▲' : '▼') + '</span>';
   }
+  document.addEventListener('click', function(){ setTimeout(rysuj, 100); });
   btn.addEventListener('click', function(){ otwarty = !otwarty; rysuj(); });
   rysuj();
 })();
