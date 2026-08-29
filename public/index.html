@@ -47,7 +47,7 @@ header.brand{background:var(--navy-bar);border-bottom:none;box-shadow:var(--shad
 .layout{display:grid;grid-template-columns:320px minmax(0,auto);
   gap:24px;max-width:1200px;margin:26px auto;padding:0 16px;}
 @media (max-width:840px){ .layout{grid-template-columns:minmax(0,auto);} aside{position:static;max-height:none;overflow:visible;} }
-
+@media (min-width:841px){ #panelToggle{display:none !important;} }
 .ic{width:15px;height:15px;display:inline-block;vertical-align:-2px;fill:none;
   stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
 
@@ -666,27 +666,28 @@ const sfTimer = setInterval(function(){ if(initSkillFinder()) clearInterval(sfTi
 
 /* ---------- MOBILE: zwijany panel kompetencji ---------- */
 (function(){
-  if(window.innerWidth > 840) return;              /* tylko male ekrany */
   var aside = document.querySelector('aside');
   if(!aside) return;
   var btn = document.createElement('button');
   btn.id = 'panelToggle';
   btn.style.cssText = 'width:100%;margin:0 0 12px;padding:13px 16px;border:none;' +
-    'border-radius:12px;background:#E8940A;font:inherit;font-weight:700;color:#fff;' +
-    'cursor:pointer;box-shadow:0 2px 8px rgba(232,148,10,.35);' +
+    'border-radius:12px;background:#2563EB;font:inherit;font-weight:700;color:#fff;' +
+    'cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,.35);' +
     'display:flex;justify-content:space-between;align-items:center;gap:10px;';
   aside.parentElement.insertBefore(btn, aside);
-  var otwarty = false;                              /* na telefonie zawsze startujemy zwiniete */
+  var otwarty = false;
+  function mobile(){ return window.innerWidth <= 840; }
   function rysuj(){
-    aside.style.display = otwarty ? '' : 'none';
+    aside.style.display = (mobile() && !otwarty) ? 'none' : '';
     var maProfil = Object.keys(userSkills || {}).length > 0;
     var napis = otwarty ? 'Zwiń panel kompetencji'
                         : (maProfil ? 'Twoje kompetencje — zmień zaznaczenia'
-                                    : 'Zaznacz kompetencje i sprawdź, gdzie rokujesz');
+                                    : 'Zaznacz swoje kompetencje');
     btn.innerHTML = '<span>🎯 ' + napis + '</span><span style="font-size:.8rem">' + (otwarty ? '▲' : '▼') + '</span>';
   }
+  btn.addEventListener('click', function(ev){ ev.stopPropagation(); otwarty = !otwarty; rysuj(); });
   document.addEventListener('click', function(){ setTimeout(rysuj, 100); });
-  btn.addEventListener('click', function(){ otwarty = !otwarty; rysuj(); });
+  window.addEventListener('resize', rysuj);
   rysuj();
 })();
    
