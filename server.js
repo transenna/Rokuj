@@ -790,12 +790,14 @@ function missingItems(j, userSkills) {
     if (st === 'never') { if (!(j.skillsW && j.skillsW[s] === 'd')) blocked = true; }
     else if (st !== 'have' && st !== 'learn') missing.push(s);
   }
-  if (j.edu && j.edu.poziom) {
+   if (j.edu && j.edu.poziom) {
     const LV = ['podstawowe', 'zawodowe', 'średnie', 'wyższe'];
     let my = -1;
     for (let i = 0; i < LV.length; i++) if (userSkills['EDU:' + LV.at(i)] === 'have') my = Math.max(my, i);
     const ok = my >= LV.indexOf(j.edu.poziom);
-    if (j.edu.kierunek) {
+    if (my === -1) {
+      /* brak oznaczonego wyksztalcenia - doradca milczy (przypominajke o profilu robi frontend, nie tutaj) */
+    } else if (j.edu.kierunek) {
       const st = userSkills['EDUK:' + j.edu.kierunek];
       if (!(ok && (st === 'have' || st === 'learn'))) missing.push('Wykształcenie: ' + j.edu.kierunek);
     } else if (!ok) missing.push('Wykształcenie ' + j.edu.poziom);
@@ -813,6 +815,10 @@ app.post('/api/advise', (req, res) => {
   if (!Object.keys(userSkills).length) {
     return res.json({ more: [], pay: [], obecnieMax: 0 });
   }
+
+  const LVE = ['podstawowe', 'zawodowe', 'średnie', 'wyższe'];
+  const bezEdu = !LVE.some(p => userSkills['EDU:' + p] === 'have');
+  
   const moreCount = {};
   const candidates = [];
   let userMax = 0;
@@ -837,7 +843,7 @@ app.post('/api/advise', (req, res) => {
   }
   const pay = Object.entries(payBest).sort((a, b) => b.at(1).val - a.at(1).val).slice(0, 5)
     .map(p => ({ co: p.at(0), stawka: p.at(1).salary, tytul: p.at(1).title }));
-  res.json({ more, pay, obecnieMax: userMax });
+    res.json({ more, pay, obecnieMax: userMax, bezEdu });
 });
 
 /* ---------- START ---------- */
