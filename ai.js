@@ -238,12 +238,17 @@ const GROUP_PROMPT_HEADER = 'Dostaniesz liste fraz-kompetencji z ogloszen o prac
   'WAZNE: frazy o znajomosci jezykow obcych ZAWSZE mapuj na odpowiednia pozycje jezykowa z listy ' +
   '(np. "biegla znajomosc jezyka angielskiego" -> "Język angielski"; "komunikacja w jezyku angielskim" -> "Język angielski"; ' +
   'poziom znajomosci ignoruj). ' +
-  'Ustaw "cel": "ODRZUC" TYLKO w dwoch przypadkach: ' +
+  'ZASADA NADRZEDNA: pozycja musi zgadzac sie z fraza CALA DZIEDZINA, nie tylko wspolnym slowem. ' +
+  'Podobienstwo slow ("doradztwo", "dobor", "sprzedaz", "obsluga") NIE wystarczy: ' +
+  '"doradztwo kosmetyczne" NIE pasuje do "Doradztwo finansowe" (inna dziedzina); ' +
+  '"dobór ogumienia" to motoryzacja, NIE finanse; ' +
+  '"znajomość branży opon" NIE pasuje do "Sprzedaż produktów finansowych". ' +
+  'Ustaw "cel": "ODRZUC" w trzech przypadkach: ' +
   '(1) fraza dotyczy poziomu WYKSZTALCENIA lub dyplomu (np. "magister farmacji", "wyksztalcenie kierunkowe", "studia wyzsze"), ' +
-  '(2) fraza jest tak ogolna, ze nic nie mowi (np. "inne umiejetnosci", "doswiadczenie w branzy", samo "organizacja"). ' +
-  'W kazdym innym przypadku wybierz najblizsza znaczeniowo pozycje z listy. ' +
+  '(2) fraza jest tak ogolna, ze nic nie mowi (np. "inne umiejetnosci", "doswiadczenie w branzy", samo "organizacja"), ' +
+  '(3) fraza nalezy do dziedziny, dla ktorej NIE MA na liscie pasujacej pozycji - ' +
+  'lepiej ODRZUC niz przypisac do pozycji z innej dziedziny. ' +
   'Zwroc JSON: {"mapa":[{"fraza":"...","cel":"..."}]}. "cel" musi byc DOKLADNIE nazwa pozycji z listy albo "ODRZUC".\n\nLISTA POZYCJI:\n';
-
 
 let groups = {};   /* fraza (norm) -> nazwa grupy */
 function loadGroups() {
