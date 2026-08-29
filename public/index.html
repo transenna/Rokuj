@@ -517,6 +517,10 @@ async function doAdvise(){
       headers:{'Content-Type':'application/json'}, body: JSON.stringify({ skills: userSkills }) })).json();
   }catch(e){ return; }
   let html = '<div class="advise-box"><h3>💡 Co możesz zyskać</h3>';
+     if(d.bezEdu){
+    html += '<div style="background:#FBF0D9;border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:.88rem;">' +
+      '🎓 <b>Zaznacz poziom swojego wykształcenia</b>, aby zyskać 100% w większej liczbie ofert.</div>';
+  }
   if(d.more.length){
     html += '<b>Więcej ofert w zasięgu:</b><ul>';
     for(const m of d.more) html += '<li>Zdobądź: <b>' + esc(m.co) + '</b> → osiągniesz 100% w <b>' + m.ofert + '</b> ofertach</li>';
