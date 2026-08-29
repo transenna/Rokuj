@@ -528,12 +528,20 @@ async function doAdvise(){
   }
   if(d.pay.length){
     html += '<b>Lepsze zarobki</b> (wśród ofert z podanym wynagrodzeniem):<ul>';
-    for(const p of d.pay) html += '<li>Zdobądź: <b>' + esc(p.co) + '</b> → w zasięgu m.in. „' + esc(p.tytul) + '" (' + esc(p.stawka) + ')</li>';
+   for(const p of d.pay) html += '<li>Zdobądź: <b>' + esc(p.co) + '</b> → w zasięgu m.in. „<a href="#" class="advise-link" data-t="' + esc(p.tytul) + '">' + esc(p.tytul) + '</a>" (' + esc(p.stawka) + ')</li>';
     html += '</ul>';
   }
   if(!d.more.length && !d.pay.length) html += 'Świetnie! Nie znaleźliśmy pojedynczej kompetencji, która wyraźnie zwiększyłaby Twoje możliwości. Spróbuj oznaczyć więcej kompetencji.';
   html += '<div style="color:#9CA3AF;font-size:.78rem;margin-top:8px;">Wyliczenia mają charakter poglądowy – nie stanowią obietnicy zatrudnienia.</div></div>';
   box.innerHTML = html; adviseOpen = true;
+     box.querySelectorAll('.advise-link').forEach(function(a){
+    a.addEventListener('click', function(ev){
+      ev.preventDefault();
+      document.getElementById('fSearch').value = this.dataset.t;
+      doSearch(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
 }
 document.getElementById('btnAdvise').addEventListener('click', doAdvise);
 
