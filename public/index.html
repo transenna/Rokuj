@@ -477,6 +477,10 @@ async function doSearch(reset){
   }catch(e){ return; }
   lastTotal = data.total;
   document.getElementById('stats').textContent = 'Znaleziono ' + data.total + ' z ' + META.total + ' ofert';
+     var zazn = Object.keys(userSkills || {}).length;
+  if(zazn && typeof data.prog70 === 'number'){
+    document.getElementById('stats').textContent += ' · zaznaczono ' + zazn + ' kompetencji → rokujesz ≥70% w ' + data.prog70 + ' ofertach';
+  }
    const hasProfile = Object.keys(userSkills || {}).length > 0;
   let html = '';
   for(const j of data.jobs){
