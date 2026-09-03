@@ -306,8 +306,24 @@ async function groupSkills(allNames) {
 }
 
 
+/* KOREKTY SKILLI: reczne poprawki przy odczycie (jak EXP_FIX/EDU_FIX) */
+const SKILL_FIX = {
+  'doradztwo w zakresie prawa pracy':'__ODRZUC__',
+  'doradztwo handlowe':'__ODRZUC__',
+  'doradztwo zakupowe':'__ODRZUC__',
+  'doradztwo strategiczne':'__ODRZUC__',
+  'doradztwo w zakresie produktów i usług':'__ODRZUC__',
+  'doradztwo w zakresie doboru produktów':'__ODRZUC__',
+  'doradztwo oparte na ryzyku':'__ODRZUC__',
+  'usługi doradcze':'__ODRZUC__',
+  'doradztwo klientom':'__ODRZUC__',
+  'analiza ryzyka':'__ODRZUC__',
+  'doradztwo ubezpieczeniowe':'Ubezpieczenia',
+};
 function groupName(name) {
-  return groups[norm(name)] || name;
+  const n = norm(name);
+  if (SKILL_FIX[n] !== undefined) return SKILL_FIX[n];
+  return groups[n] || name;
 }
 /* ---------- NORMALIZACJA KIERUNKOW WYKSZTALCENIA ---------- */
 const EDU_PROMPT = 'Dostaniesz liste nazw kierunkow wyksztalcenia z ogloszen o prace (po polsku, rozne formy gramatyczne). ' +
