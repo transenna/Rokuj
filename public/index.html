@@ -142,6 +142,7 @@ input[type=range]{accent-color:var(--accent);padding:0;border:none;}
 .badge{background:#F0F1F3;color:var(--ink-soft);
   border-radius:999px;padding:2px 10px;font-size:.75rem;font-weight:700;}
 .tag{display:inline-block;background:#F0F1F3;color:#374151;
+     .job .tag{cursor:pointer;}
   border-radius:999px;padding:3px 11px;font-size:.78rem;margin:2px 4px 2px 0;}
 .tag.have{background:#FAEDCB;color:#B07800;font-weight:600;}
 .tag.learn{background:var(--mid-bg);color:#8F4A04;}
@@ -726,7 +727,19 @@ const sfTimer = setInterval(function(){ if(initSkillFinder()) clearInterval(sfTi
   new MutationObserver(function(){ rysuj(); }).observe(aside, { childList: true });
   rysuj();
 })();
-
+/* ---------- KLIKALNE TAGI: buduj profil prosto z ofert ---------- */
+document.getElementById('jobs').addEventListener('click', function(ev){
+  var tag = ev.target.closest ? ev.target.closest('.tag') : null;
+  if(!tag) return;
+  var m = (tag.getAttribute('title') || '').match(/liczy się jako: (.+)$/);
+  var klucz = m ? m.at(1) : tag.textContent.trim();
+  var stan = userSkills[klucz];
+  var nowy = !stan ? 'have' : (stan === 'have' ? 'learn' : (stan === 'learn' ? 'never' : null));
+  if(nowy) userSkills[klucz] = nowy; else delete userSkills[klucz];
+  saveProfile();
+  renderSkills();
+  doSearch(true);
+});
 </script>
 
 </body>
