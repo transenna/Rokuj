@@ -751,12 +751,13 @@ app.post('/api/search', (req, res) => {
       return isAsc ? -cmp : cmp;
     });
   }
-
-
-
   const items = out.slice(page * size, (page + 1) * size)
   .map(r => Object.assign({ score: r.score, reqCount: r.reqCount }, r.j));
-  res.json({ total: out.length, page, size, jobs: items });
+    let prog70 = 0;
+  if (Object.keys(userSkills).length) {
+    for (const j of DATA.jobs) { const r2 = scoreJob(j, userSkills); if (r2.score >= 70) prog70 += 1; }
+  }
+  res.json({ total: out.length, page, size, jobs: items, prog70: prog70 });
 });
 /* metadane do budowy panelu i filtrow */
 app.get('/api/meta', (req, res) => {
