@@ -722,21 +722,7 @@ const sfTimer = setInterval(function(){ if(initSkillFinder()) clearInterval(sfTi
   new MutationObserver(function(){ rysuj(); }).observe(aside, { childList: true });
   rysuj();
 })();
-   /* ---------- POTWIERDZENIE RESETU PROFILU ---------- */
-(function(){
-  var btns = document.querySelectorAll('button');
-  for(var i = 0; i < btns.length; i++){
-    if((btns[i].textContent || '').indexOf('Resetuj profil') !== -1){
-      btns[i].addEventListener('click', function(ev){
-        if(!confirm('Na pewno wyczyścić wszystkie zaznaczenia?\nTej operacji nie można cofnąć.')){
-          ev.stopImmediatePropagation();
-          ev.preventDefault();
-        }
-      }, true);
-      break;
-    }
-  }
-})();
+
 </script>
 
 </body>
