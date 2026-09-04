@@ -516,9 +516,26 @@ function odmianaKomp(n){
   else box.insertAdjacentHTML('beforeend', html);
   shown += data.jobs.length;
   if(reset && !data.total){
-    box.innerHTML = META.total
-      ? '<div class="empty">Brak pasujących ofert.<br>Poluzuj filtry lub zmień ustawienia kompetencji.</div>'
-      : '<div class="empty">Portal w przygotowaniu – trwa integracja źródeł ofert.<br>Zapraszamy wkrótce!</div>';
+    if(!META.total){
+      box.innerHTML = '<div class="empty">Portal w przygotowaniu – trwa integracja źródeł ofert.<br>Zapraszamy wkrótce!</div>';
+    } else {
+      /* ktore filtry sa aktywne? wymienmy je po imieniu */
+      var akt = [];
+      if(document.getElementById('fSearch').value.trim()) akt.push('szukana fraza „' + esc(document.getElementById('fSearch').value.trim()) + '"');
+      if(document.getElementById('fLocation').value.trim()) akt.push('lokalizacja „' + esc(document.getElementById('fLocation').value.trim()) + '"');
+      if(document.getElementById('fPortal').value) akt.push('wybrany portal');
+      if(remoteOnly) akt.push('tylko zdalnie');
+      if(salaryOnly) akt.push('tylko z zarobkami');
+      if(parseInt(document.getElementById('fMinSalary').value, 10) > 0) akt.push('min. zarobki ' + document.getElementById('fMinSalary').value + ' zł');
+      if(document.getElementById('fPoziom').value) akt.push('poziom „' + document.getElementById('fPoziom').value + '"');
+      if(document.getElementById('fForma').value) akt.push('umowa „' + document.getElementById('fForma').value + '"');
+      if(parseInt(document.getElementById('fScore').value, 10) > 0) akt.push('min. rokowanie ' + document.getElementById('fScore').value + '%');
+      box.innerHTML = '<div class="empty">Brak pasujących ofert.<br>' +
+        (akt.length
+          ? 'Zawężają Cię: <b>' + akt.join('</b>, <b>') + '</b>.<br>Spróbuj poluzować któryś z tych filtrów.'
+          : 'Zmień ustawienia kompetencji (oferty z oznaczeniem „nie nabędę" są ukrywane).') +
+        '</div>';
+    }
   }
   document.getElementById('moreWrap').innerHTML = (shown < lastTotal)
     ? '<button id="btnMore">Pokaż więcej (' + (lastTotal - shown) + ')</button>' : '';
