@@ -719,6 +719,7 @@ app.post('/api/search', (req, res) => {
     if (b.minSalary && salaryNum(j.salary) < b.minSalary) continue;
     if (b.poziom && j.poziom !== b.poziom) continue;
     if (b.forma && !(j.formy || []).includes(b.forma)) continue;
+    if (b.favOnly && (!Array.isArray(b.favUrls) || !b.favUrls.includes(j.url))) continue;
     const r = scoreJob(j, userSkills);
     if (r.score < 0) continue;
     if (b.minScore && r.score < b.minScore) continue;
