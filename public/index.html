@@ -456,7 +456,14 @@ function ladnyTytul(t){
   }
   return t;
 }
-async function doSearch(reset){
+/* polska odmiana: 1 kompetencja, 2-4 kompetencje, 5+ kompetencji (z wyjatkiem 12-14) */
+function odmianaKomp(n){
+  if(n === 1) return '1 kompetencję';
+  var r10 = n % 10, r100 = n % 100;
+  if(r10 >= 2 && r10 <= 4 && !(r100 >= 12 && r100 <= 14)) return n + ' kompetencje';
+  return n + ' kompetencji';
+}
+   async function doSearch(reset){
   if(reset){ page = 0; shown = 0; }
   const body = {
     q: document.getElementById('fSearch').value,
@@ -480,7 +487,7 @@ async function doSearch(reset){
   document.getElementById('stats').textContent = 'Znaleziono ' + data.total + ' z ' + META.total + ' ofert';
      var zazn = Object.keys(userSkills || {}).length;
   if(zazn && typeof data.prog70 === 'number'){
-    document.getElementById('stats').textContent += ' · zaznaczono ' + zazn + ' kompetencji → rokujesz ≥70% w ' + data.prog70 + ' ofertach';
+    document.getElementById('stats').textContent += ' · zaznaczono ' + odmianaKomp(zazn) + ' → rokujesz ≥70% w ' + data.prog70 + ' ofertach';
   }
    const hasProfile = Object.keys(userSkills || {}).length > 0;
   let html = '';
