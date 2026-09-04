@@ -144,6 +144,9 @@ input[type=range]{accent-color:var(--accent);padding:0;border:none;}
 .tag{display:inline-block;background:#F0F1F3;color:#374151;
   border-radius:999px;padding:3px 11px;font-size:.78rem;margin:2px 4px 2px 0;}
 .job .tag{cursor:pointer;}
+.fav{cursor:pointer;color:#C9CDD4;font-size:1.05em;user-select:none;}
+.fav:hover{color:#E8A317;}
+.fav.on{color:#E8A317;}
 .tag.have{background:#FAEDCB;color:#B07800;font-weight:600;}
 .tag.learn{background:var(--mid-bg);color:#8F4A04;}
 .tag.never{background:var(--bad-bg);color:var(--bad);}
@@ -463,6 +466,11 @@ function odmianaKomp(n){
   if(r10 >= 2 && r10 <= 4 && !(r100 >= 12 && r100 <= 14)) return n + ' kompetencje';
   return n + ' kompetencji';
 }
+   /* ---------- ULUBIONE OFERTY (gwiazdki) ---------- */
+var favOnly = false;
+var favy = {};
+try{ favy = JSON.parse(localStorage.getItem('rokujFav') || '{}') || {}; }catch(e){ favy = {}; }
+function saveFav(){ try{ localStorage.setItem('rokujFav', JSON.stringify(favy)); }catch(e){} }
    async function doSearch(reset){
   if(reset){ page = 0; shown = 0; }
   const body = {
@@ -476,6 +484,7 @@ function odmianaKomp(n){
    minSalary: parseInt(document.getElementById('fMinSalary').value, 10) || 0,
     poziom: document.getElementById('fPoziom').value,
     forma: document.getElementById('fForma').value,
+   favOnly: favOnly, favUrls: Object.keys(favy),
     skills: userSkills, page: page, size: 50,
   };
   let data;
@@ -508,7 +517,7 @@ function odmianaKomp(n){
     html += '<div class="job ' + cls + '">' +
       (hasProfile
         ? '<span class="match ' + cls + '" title="Rokowanie to poglądowa symulacja dopasowania Twoich oznaczeń do treści ogłoszenia. Nie jest obietnicą ani gwarancją zatrudnienia.">Rokujesz na ' + j.score + '%</span>'
-        : '<span class="match low" title="Zaznacz swoje kompetencje w panelu po lewej stronie, aby zobaczyć, jak rokujesz na tę ofertę.">Rokujesz na...?</span>') +      '<h3>' + esc(ladnyTytul(j.title)) + '</h3><div class="meta">' + meta + '</div><div>' + tags + '</div>' +
+        : '<span class="match low" title="Zaznacz swoje kompetencje w panelu po lewej stronie, aby zobaczyć, jak rokujesz na tę ofertę.">Rokujesz na...?</span>') +      '<h3><span class="fav' + (favy[j.url] ? ' on' : '') + '" data-u="' + esc(j.url) + '" title="Zapisz na później">★</span> ' + esc(ladnyTytul(j.title)) + '</h3><div class="meta">' + meta + '</div><div>' + tags + '</div>' +
       '<a class="more" href="' + esc(j.url) + '" target="_blank" rel="noopener" data-portal="' + esc(j.portal) + '" data-tytul="' + esc(j.title) + '" data-score="' + j.score + '" data-req="' + (j.reqCount != null ? j.reqCount : '') + '">Zobacz ofertę ' + ICON_GO + '</a></div>';
   }
   const box = document.getElementById('jobs');
@@ -530,6 +539,7 @@ function odmianaKomp(n){
       if(document.getElementById('fPoziom').value) akt.push('poziom „' + document.getElementById('fPoziom').value + '"');
       if(document.getElementById('fForma').value) akt.push('umowa „' + document.getElementById('fForma').value + '"');
       if(parseInt(document.getElementById('fScore').value, 10) > 0) akt.push('min. rokowanie ' + document.getElementById('fScore').value + '%');
+      if(favOnly) akt.push('tylko zapisane ⭐');
       box.innerHTML = '<div class="empty">Brak pasujących ofert.<br>' +
         (akt.length
           ? 'Zawężają Cię: <b>' + akt.join('</b>, <b>') + '</b>.<br>Spróbuj poluzować któryś z tych filtrów.'
@@ -764,6 +774,31 @@ document.getElementById('jobs').addEventListener('click', function(ev){
   renderSkills();
   doSearch(true);
 });
+/* przycisk "zapisane" obok "z zarobkami" (kopiuje jego wyglad) */
+(function(){
+  var wzor = document.getElementById('fSalaryOnly');
+  if(!wzor) return;
+  var b = document.createElement('button');
+  b.id = 'fFav';
+  b.className = wzor.className;
+  b.innerHTML = '⭐ zapisane';
+  wzor.parentElement.insertBefore(b, wzor.nextSibling);
+  b.addEventListener('click', function(){
+    favOnly = !favOnly;
+    this.classList.toggle('on', favOnly);
+    doSearch(true);
+  });
+})();
+/* klik w gwiazdke */
+document.getElementById('jobs').addEventListener('click', function(ev){
+  var st = ev.target.closest ? ev.target.closest('.fav') : null;
+  if(!st) return;
+  var u = st.dataset.u;
+  if(favy[u]) delete favy[u]; else favy[u] = 1;
+  saveFav();
+  st.classList.toggle('on', !!favy[u]);
+  if(favOnly) doSearch(true); /* w widoku zapisanych odznaczenie znika z listy */
+});   
 </script>
 
 </body>
