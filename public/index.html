@@ -819,11 +819,12 @@ function pokazRozklad(j){
     var k = origs[i].k;
     if(widziane[k]) continue; widziane[k] = 1;
     var dod = (j.skillsW && j.skillsW[k] === 'd') ? ' <i>(mile widziane)</i>' : '';
+    var naz = esc(origs[i].o) + (origs[i].o !== k ? ' <span style="color:#9CA3AF">(liczy się jako: ' + esc(k) + ')</span>' : '');
     var st = userSkills[k];
-    if(st === 'have') mam.push(esc(k) + dod);
-    else if(st === 'learn') nabede.push(esc(k) + dod);
-    else if(st === 'never'){ if(dod) brak.push(esc(k) + dod); else blok.push(esc(k)); }
-    else brak.push(esc(k) + dod);
+    if(st === 'have') mam.push(naz + dod);
+    else if(st === 'learn') nabede.push(naz + dod);
+    else if(st === 'never'){ if(dod) brak.push(naz + dod); else blok.push(esc(origs[i].o)); }
+    else brak.push(naz + dod);
   }
   if(j.edu && j.edu.poziom){
     var LV = ['podstawowe','zawodowe','średnie','wyższe'];
