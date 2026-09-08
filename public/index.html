@@ -500,7 +500,9 @@ function saveFav(){ try{ localStorage.setItem('rokujFav', JSON.stringify(favy));
   }
    const hasProfile = Object.keys(userSkills || {}).length > 0;
   let html = '';
+     if(reset) RJOBS = [];   
   for(const j of data.jobs){
+    RJOBS.push(j);
     const cls = j.score >= 70 ? 'high' : (j.score >= 40 ? 'mid' : 'low');
     let tags = '';
     const origs = (j.skillsOrig && j.skillsOrig.length) ? j.skillsOrig : (j.skills || []).map(function(s){ return { o:s, k:s }; });
@@ -516,7 +518,7 @@ function saveFav(){ try{ localStorage.setItem('rokujFav', JSON.stringify(favy));
     meta += '<span class="dot"></span><span class="badge">' + esc(j.portal) + '</span>';
     html += '<div class="job ' + cls + '">' +
       (hasProfile
-        ? '<span class="match ' + cls + '" title="Rokowanie to poglądowa symulacja dopasowania Twoich oznaczeń do treści ogłoszenia. Nie jest obietnicą ani gwarancją zatrudnienia.">Rokujesz na ' + j.score + '%</span>'
+        ? '<span class="match ' + cls + '" data-i="' + (RJOBS.length - 1) + '" title="Rokowanie to poglądowa symulacja dopasowania Twoich oznaczeń do treści ogłoszenia. Nie jest obietnicą ani gwarancją zatrudnienia.">Rokujesz na ' + j.score + '%</span>'
         : '<span class="match low" title="Zaznacz swoje kompetencje w panelu po lewej stronie, aby zobaczyć, jak rokujesz na tę ofertę.">Rokujesz na...?</span>') +      '<h3><span class="fav' + (favy[j.url] ? ' on' : '') + '" data-u="' + esc(j.url) + '" title="Zapisz na później">★</span> ' + esc(ladnyTytul(j.title)) + '</h3><div class="meta">' + meta + '</div><div>' + tags + '</div>' +
       '<a class="more" href="' + esc(j.url) + '" target="_blank" rel="noopener" data-portal="' + esc(j.portal) + '" data-tytul="' + esc(j.title) + '" data-score="' + j.score + '" data-req="' + (j.reqCount != null ? j.reqCount : '') + '">Zobacz ofertę ' + ICON_GO + '</a></div>';
   }
@@ -799,6 +801,65 @@ document.getElementById('jobs').addEventListener('click', function(ev){
   st.classList.toggle('on', !!favy[u]);
   if(favOnly) doSearch(true); /* w widoku zapisanych odznaczenie znika z listy */
 });   
+/* ---------- UX-8: "dlaczego tyle?" - rozklad rokowania ---------- */
+var RJOBS = [];
+function pokazRozklad(j){
+  var mam = [], nabede = [], brak = [], blok = [];
+  var origs = (j.skillsOrig && j.skillsOrig.length) ? j.skillsOrig : (j.skills || []).map(function(s){ return { o:s, k:s }; });
+  var widziane = {};
+  for(var i = 0; i < origs.length; i++){
+    var k = origs[i].k;
+    if(widziane[k]) continue; widziane[k] = 1;
+    var dod = (j.skillsW && j.skillsW[k] === 'd') ? ' <i>(mile widziane)</i>' : '';
+    var st = userSkills[k];
+    if(st === 'have') mam.push(esc(k) + dod);
+    else if(st === 'learn') nabede.push(esc(k) + dod);
+    else if(st === 'never'){ if(dod) brak.push(esc(k) + dod); else blok.push(esc(k)); }
+    else brak.push(esc(k) + dod);
+  }
+  if(j.edu && j.edu.poziom){
+    var LV = ['podstawowe','zawodowe','średnie','wyższe'];
+    var my = -1;
+    for(var p = 0; p < LV.length; p++) if(userSkills['EDU:' + LV.at(p)] === 'have') my = Math.max(my, p);
+    var wpis = 'Wykształcenie ' + esc(j.edu.poziom) + (j.edu.kierunek ? ' (' + esc(j.edu.kierunek) + ')' : '');
+    var okP = my >= LV.indexOf(j.edu.poziom);
+    var stK = j.edu.kierunek ? userSkills['EDUK:' + j.edu.kierunek] : null;
+    if(okP && (!j.edu.kierunek || stK === 'have' || stK === 'learn')) mam.push(wpis); else brak.push(wpis);
+  }
+  for(var e = 0; e < (j.exp || []).length; e++){
+    var dz = j.exp.at(e).dz;
+    var ste = userSkills['EXP:' + dz];
+    var wpisE = 'Doświadczenie: ' + esc(dz) + (j.exp.at(e).lata ? ' (' + j.exp.at(e).lata + ' lat)' : '');
+    if(ste === 'have') mam.push(wpisE);
+    else if(ste === 'learn') nabede.push(wpisE);
+    else if(ste === 'never') blok.push(wpisE);
+    else brak.push(wpisE);
+  }
+  function sekcja(ikona, tytul, lista){
+    return lista.length ? '<div class="rz-sek"><b>' + ikona + ' ' + tytul + '</b><ul><li>' + lista.join('</li><li>') + '</li></ul></div>' : '';
+  }
+  var h = '<div class="rozklad-tlo"><div class="rozklad">' +
+    '<div class="rz-naglowek"><b>Rokujesz na ' + j.score + '%</b> — z czego to wynika?<span class="rz-x">✕</span></div>' +
+    sekcja('✅', 'Masz', mam) +
+    sekcja('🟡', 'Możesz nabyć (liczone w połowie)', nabede) +
+    sekcja('⬜', 'Brakuje', brak) +
+    sekcja('⛔', 'Blokuje ofertę („nie nabędę" przy wymogu kluczowym)', blok) +
+    '<div class="rz-stopka">Wymagania mają różne wagi (rzadkie i kluczowe liczą się mocniej), dlatego procent nie jest prostym ułamkiem. Wyliczenia poglądowe.</div>' +
+    '</div></div>';
+  var w = document.createElement('div');
+  w.innerHTML = h;
+  var tlo = w.firstChild;
+  document.body.appendChild(tlo);
+  tlo.addEventListener('click', function(ev){
+    if(ev.target === tlo || ev.target.className === 'rz-x') document.body.removeChild(tlo);
+  });
+}
+document.getElementById('jobs').addEventListener('click', function(ev){
+  var pl = ev.target.closest ? ev.target.closest('.match[data-i]') : null;
+  if(!pl) return;
+  var j = RJOBS[Number(pl.dataset.i)];
+  if(j) pokazRozklad(j);
+});
 </script>
 
 </body>
