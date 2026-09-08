@@ -479,6 +479,8 @@ var favOnly = false;
 var favy = {};
 try{ favy = JSON.parse(localStorage.getItem('rokujFav') || '{}') || {}; }catch(e){ favy = {}; }
 function saveFav(){ try{ localStorage.setItem('rokujFav', JSON.stringify(favy)); }catch(e){} }
+/* miejscownik: w 1 ofercie, w N ofertach */
+function odmianaOfert(n){ return n === 1 ? '1 ofercie' : n + ' ofertach'; }   
    async function doSearch(reset){
   if(reset){ page = 0; shown = 0; }
   const body = {
@@ -504,7 +506,7 @@ function saveFav(){ try{ localStorage.setItem('rokujFav', JSON.stringify(favy));
   document.getElementById('stats').textContent = 'Znaleziono ' + data.total + ' z ' + META.total + ' ofert';
      var zazn = Object.keys(userSkills || {}).length;
   if(zazn && typeof data.prog70 === 'number'){
-    document.getElementById('stats').textContent += ' · zaznaczono ' + odmianaKomp(zazn) + ' → rokujesz ≥70% w ' + data.prog70 + ' ofertach';
+    document.getElementById('stats').textContent += ' · zaznaczono ' + odmianaKomp(zazn) + ' → rokujesz ≥70% w ' + odmianaOfert(data.prog70);
   }
    const hasProfile = Object.keys(userSkills || {}).length > 0;
   let html = '';
