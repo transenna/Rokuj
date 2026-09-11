@@ -147,6 +147,7 @@ async function fetchAdzuna() {
           company: (r.company && r.company.display_name) ? r.company.display_name : '',
           location: (r.location && r.location.display_name) ? r.location.display_name : '',
           text: (r.title || '') + ' ' + (r.description || ''),
+          opis: r.description || '',
           url: r.redirect_url || '#',
           portal: 'Adzuna',
           age: age,
