@@ -54,7 +54,11 @@ function formatAdzunaSalary(min, max) {
   if (hi > 60000) return null;     /* powyzej 60 tys./mies. = dane roczne/niewiarygodne */
   return formatSalary(min, max);
 }
-
+/* staly, krotki identyfikator oferty do adresu /oferta/xxxx (odcisk md5 z url) */
+const cryptoId = require('crypto');
+function idOferty(u) {
+  return cryptoId.createHash('md5').update(String(u || '')).digest('hex').slice(0, 10);
+}
 /* zarobki z Careerjet: np. "zl33 per hour" -> "33 zł/godz." */
 function normalizeCareerjetSalary(s) {
   if (!s) return null;
@@ -336,6 +340,8 @@ async function syncAll() {
       const copy = Object.assign({}, j);
       copy.exp = remapExp(copy.exp);
       copy.age = age;
+      copy.id = idOferty(copy.url);
+      if (copy.opis === undefined) copy.opis = '';
       if (!copy.posted) copy.posted = new Date(now - (age || 0) * 86400000).toISOString();
       kept.push(copy);
     }
@@ -419,6 +425,8 @@ async function syncAll() {
         age: r.age,
         posted: new Date(now - (r.age || 0) * 86400000).toISOString(),
         salary: r.salary || (r.ai && r.ai.salary) || null,
+        opis: r.opis || '',
+        id: idOferty(r.url),
       });
     }
     for (const j of kept) jobs.push(j);
