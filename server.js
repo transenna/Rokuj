@@ -834,6 +834,20 @@ app.get('/oferta/:id', (req, res) => {
     '<a class="wroc" href="/">← Sprawdź, na ile rokujesz na tę i 5000 innych ofert</a>' +
     '</div></main><footer>Rokuj.pl · oferta pochodzi z publicznego źródła (' + escH(j.portal) + ')</footer></body></html>');
 });
+/* ---------- MAPA STRONY dla Google (/sitemap.xml) ---------- */
+app.get('/sitemap.xml', (req, res) => {
+  const dzis = new Date().toISOString().slice(0, 10);
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+    '<url><loc>https://rokuj.pl/</loc><lastmod>' + dzis + '</lastmod><changefreq>daily</changefreq></url>';
+  for (const j of (DATA.jobs || [])) {
+    if (!j.id || !j.opis) continue;
+    xml += '<url><loc>https://rokuj.pl/oferta/' + j.id + '</loc>' +
+      '<lastmod>' + String(j.posted || dzis).slice(0, 10) + '</lastmod></url>';
+  }
+  xml += '</urlset>';
+  res.type('application/xml').send(xml);
+});
 /* metadane do budowy panelu i filtrow */
 app.get('/api/meta', (req, res) => {
   const portals = {};
