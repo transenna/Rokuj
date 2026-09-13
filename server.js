@@ -769,6 +769,71 @@ app.post('/api/search', (req, res) => {
   }
   res.json({ total: out.length, page, size, jobs: items, prog70: prog70 });
 });
+/* ---------- STRONA POJEDYNCZEJ OFERTY (/oferta/xxxx) + metryczka dla Google ---------- */
+function escH(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+app.get('/oferta/:id', (req, res) => {
+  const j = (DATA.jobs || []).find(x => x.id === req.params.id);
+  if (!j) {
+    return res.status(404).send('<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="robots" content="noindex">' +
+      '<title>Oferta wygasła – Rokuj.pl</title></head>' +
+      '<body style="font-family:\'Segoe UI\',system-ui,Arial,sans-serif;background:#F7F8FA;color:#1F2328;text-align:center;padding:60px 20px;">' +
+      '<h1>Ta oferta wygasła</h1><p>Oferty znikają, gdy pracodawcy je zamykają – ale codziennie pojawiają się nowe.</p>' +
+      '<p><a href="/" style="color:#E8940A;font-weight:700;">Wróć do wyszukiwarki Rokuj.pl →</a></p></body></html>');
+  }
+  /* metryczka JSON-LD - tylko gdy oferta ma opis (Google wymaga opisu) */
+  let ld = '';
+  if (j.opis) {
+    const dane = {
+      '@context': 'https://schema.org/',
+      '@type': 'JobPosting',
+      title: j.title,
+      description: '<p>' + escH(j.opis) + '</p>',
+      datePosted: String(j.posted || '').slice(0, 10),
+      validThrough: new Date(new Date(j.posted || Date.now()).getTime() + 60 * 86400000).toISOString().slice(0, 10),
+      hiringOrganization: { '@type': 'Organization', name: j.company || 'Pracodawca (w treści ogłoszenia)' },
+      jobLocation: { '@type': 'Place', address: { '@type': 'PostalAddress',
+        addressLocality: String(j.location || '').split(',').at(0) || 'Polska', addressCountry: 'PL' } },
+    };
+    if (j.remote) {
+      dane.jobLocationType = 'TELECOMMUTE';
+      dane.applicantLocationRequirements = { '@type': 'Country', name: 'Polska' };
+    }
+    ld = '<script type="application/ld+json">' +
+      JSON.stringify(dane).replace(/</g, '\\u003c') + '</scr' + 'ipt>';
+  }
+  const tagi = (j.skills || []).map(s => '<span class="t">' + escH(s) + '</span>').join('');
+  const meta = [escH(j.company), escH(j.location), j.salary ? '<b>' + escH(j.salary) + '</b>' : '', 'źródło: ' + escH(j.portal)]
+    .filter(Boolean).join(' · ');
+  res.send('<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    '<title>' + escH(j.title) + ' – ' + escH(j.location || 'Polska') + ' | Rokuj.pl</title>' +
+    '<meta name="description" content="' + escH((j.opis || j.title).slice(0, 155)) + '">' +
+    '<link rel="canonical" href="https://rokuj.pl/oferta/' + escH(j.id) + '">' +
+    '<link rel="icon" href="/favicon.png">' + ld +
+    '<style>body{margin:0;font-family:\'Segoe UI\',system-ui,Arial,sans-serif;background:#F7F8FA;color:#1F2328;line-height:1.5}' +
+    '.pas{background:#16304D;padding:12px 20px}.pas img{height:40px;display:block}' +
+    'main{max-width:760px;margin:24px auto;padding:0 16px}' +
+    '.karta{background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:24px;box-shadow:0 1px 3px rgba(16,24,40,.06)}' +
+    'h1{font-size:1.35rem;margin:0 0 8px}.meta{color:#6B7280;font-size:.9rem;margin-bottom:14px}.meta b{color:#16304D}' +
+    '.t{display:inline-block;background:#F0F1F3;color:#374151;border-radius:999px;padding:3px 11px;font-size:.78rem;margin:2px 4px 2px 0}' +
+    '.opis{margin:16px 0;font-size:.95rem}.brak{color:#6B7280;font-style:italic}' +
+    '.cta{display:inline-block;background:#16304D;color:#fff;font-weight:700;text-decoration:none;border-radius:10px;padding:12px 22px;margin-top:6px}' +
+    '.cta:hover{background:#1E3A5C}' +
+    '.wroc{display:inline-block;margin-top:18px;color:#E8940A;font-weight:600;text-decoration:none}' +
+    'footer{text-align:center;color:#9CA3AF;font-size:.78rem;padding:24px}</style></head>' +
+    '<body><div class="pas"><a href="/"><img src="/logo2.png" alt="Rokuj.pl"></a></div>' +
+    '<main><div class="karta"><h1>' + escH(j.title) + '</h1>' +
+    '<div class="meta">' + meta + '</div>' +
+    '<div>' + tagi + '</div>' +
+    '<div class="opis">' + (j.opis ? escH(j.opis) + ' (…)' : '<span class="brak">Pełna treść ogłoszenia dostępna u źródła.</span>') + '</div>' +
+    '<a class="cta" href="' + escH(j.url) + '" target="_blank" rel="noopener">Zobacz pełne ogłoszenie i aplikuj →</a><br>' +
+    '<a class="wroc" href="/">← Sprawdź, na ile rokujesz na tę i 5000 innych ofert</a>' +
+    '</div></main><footer>Rokuj.pl · oferta pochodzi z publicznego źródła (' + escH(j.portal) + ')</footer></body></html>');
+});
 /* metadane do budowy panelu i filtrow */
 app.get('/api/meta', (req, res) => {
   const portals = {};
