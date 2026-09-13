@@ -805,7 +805,7 @@ app.get('/oferta/:id', (req, res) => {
     ld = '<script type="application/ld+json">' +
       JSON.stringify(dane).replace(/</g, '\\u003c') + '</scr' + 'ipt>';
   }
-  const tagi = (j.skills || []).map(s => '<span class="t">' + escH(s) + '</span>').join('');
+    const tagi = (j.skills || []).map(s => '<span class="t" data-k="' + escH(s) + '">' + escH(s) + '</span>').join('');
   const meta = [escH(j.company), escH(j.location), j.salary ? '<b>' + escH(j.salary) + '</b>' : '', 'źródło: ' + escH(j.portal)]
     .filter(Boolean).join(' · ');
   res.send('<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8">' +
@@ -820,6 +820,8 @@ app.get('/oferta/:id', (req, res) => {
     '.karta{background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:24px;box-shadow:0 1px 3px rgba(16,24,40,.06)}' +
     'h1{font-size:1.35rem;margin:0 0 8px}.meta{color:#6B7280;font-size:.9rem;margin-bottom:14px}.meta b{color:#16304D}' +
     '.t{display:inline-block;background:#F0F1F3;color:#374151;border-radius:999px;padding:3px 11px;font-size:.78rem;margin:2px 4px 2px 0}' +
+    '.t{cursor:pointer}.t.mam{background:#FAEDCB;color:#B07800;font-weight:600}.t.nab{background:#FCEBD3;color:#8F4A04}.t.nie{background:#FDEAEA;color:#DC2626}' +
+    '#licznik{background:#FBF0D9;border-radius:10px;padding:10px 14px;margin:12px 0;font-size:.9rem}#licznik a{color:#B07800;font-weight:700;text-decoration:none}' +      
     '.opis{margin:16px 0;font-size:.95rem}.brak{color:#6B7280;font-style:italic}' +
     '.cta{display:inline-block;background:#16304D;color:#fff;font-weight:700;text-decoration:none;border-radius:10px;padding:12px 22px;margin-top:6px}' +
     '.cta:hover{background:#1E3A5C}' +
@@ -828,11 +830,24 @@ app.get('/oferta/:id', (req, res) => {
     '<body><div class="pas"><a href="/"><img src="/logo2.png" alt="Rokuj.pl"></a></div>' +
     '<main><div class="karta"><h1>' + escH(j.title) + '</h1>' +
     '<div class="meta">' + meta + '</div>' +
-    '<div>' + tagi + '</div>' +
+    '<div>' + tagi + '</div><div id="licznik"></div>' +
     '<div class="opis">' + (j.opis ? escH(j.opis) + ' (…)' : '<span class="brak">Pełna treść ogłoszenia dostępna u źródła.</span>') + '</div>' +
     '<a class="cta" href="' + escH(j.url) + '" target="_blank" rel="noopener">Zobacz pełne ogłoszenie i aplikuj →</a><br>' +
     '<a class="wroc" href="/">← Sprawdź, na ile rokujesz na tę i 5000 innych ofert</a>' +
-    '</div></main><footer>Rokuj.pl · oferta pochodzi z publicznego źródła (' + escH(j.portal) + ')</footer></body></html>');
+    '</div></main><footer>Rokuj.pl · oferta pochodzi z publicznego źródła (' + escH(j.portal) + ')</footer><script>var WAGI=' + JSON.stringify(j.skillsW || {}) + ';var ILE=' + (DATA.jobs || []).length + ';' +
+    'var prof={};try{prof=JSON.parse(localStorage.getItem("rokujProfile")||"{}")||{}}catch(e){}' +
+    'function zapisz(){try{localStorage.setItem("rokujProfile",JSON.stringify(prof))}catch(e){}}' +
+    'function rysuj(){var z=0,n=0,suma=0,sw=0;' +
+    'document.querySelectorAll(".t[data-k]").forEach(function(t){var k=t.dataset.k,st=prof[k]||"",w=(WAGI[k]==="d")?0.4:1;n++;sw+=w;' +
+    't.className="t"+(st==="have"?" mam":st==="learn"?" nab":st==="never"?" nie":"");' +
+    'if(st==="have"){z++;suma+=w}else if(st==="learn"){z++;suma+=w*0.5}else if(st==="never"){z++}});' +
+    'var proc=sw?Math.round(100*suma/sw):0;var el=document.getElementById("licznik");if(el===null)return;' +
+    'el.innerHTML=z?("Oznaczono <b>"+z+" z "+n+"</b> wymaga&nacute; &rarr; rokujesz tu na ok. <b>"+proc+"%</b><br>' +
+    '<a href="/">Sprawd&zacute;, w ilu z "+ILE+" ofert rokujesz jeszcze wy&zdot;ej &rarr;</a>")' +
+    ':"Kliknij wymaganie, kt&oacute;re spe&lstrok;niasz &mdash; policzymy na &zdot;ywo, na ile rokujesz. Kolejne klikni&eogon;cia: mam &rarr; mog&eogon; naby&cacute; &rarr; nie nab&eogon;d&eogon; &rarr; odznacz."}' +
+    'document.querySelectorAll(".t[data-k]").forEach(function(t){t.addEventListener("click",function(){' +
+    'var k=this.dataset.k,st=prof[k];if(st===undefined)prof[k]="have";else if(st==="have")prof[k]="learn";else if(st==="learn")prof[k]="never";else delete prof[k];' +
+    'zapisz();rysuj()})});rysuj();</scr' + 'ipt></body></html>');
 });
 /* ---------- MAPA STRONY dla Google (/sitemap.xml) ---------- */
 app.get('/sitemap.xml', (req, res) => {
