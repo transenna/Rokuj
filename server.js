@@ -834,20 +834,41 @@ app.get('/oferta/:id', (req, res) => {
     '<div class="opis">' + (j.opis ? escH(j.opis) + ' (…)' : '<span class="brak">Pełna treść ogłoszenia dostępna u źródła.</span>') + '</div>' +
     '<a class="cta" href="' + escH(j.url) + '" target="_blank" rel="noopener">Zobacz pełne ogłoszenie i aplikuj →</a><br>' +
     '<a class="wroc" href="/">← Sprawdź, na ile rokujesz na tę i 5000 innych ofert</a>' +
-    '</div></main><footer>Rokuj.pl · oferta pochodzi z publicznego źródła (' + escH(j.portal) + ')</footer><script>var WAGI=' + JSON.stringify(j.skillsW || {}) + ';var ILE=' + (DATA.jobs || []).length + ';' +
-    'var prof={};try{prof=JSON.parse(localStorage.getItem("rokujProfile")||"{}")||{}}catch(e){}' +
-    'function zapisz(){try{localStorage.setItem("rokujProfile",JSON.stringify(prof))}catch(e){}}' +
-    'function rysuj(){var z=0,n=0,suma=0,sw=0;' +
-    'document.querySelectorAll(".t[data-k]").forEach(function(t){var k=t.dataset.k,st=prof[k]||"",w=(WAGI[k]==="d")?0.4:1;n++;sw+=w;' +
+    '</div></main><footer>Rokuj.pl · oferta pochodzi z publicznego źródła (' + escH(j.portal) + ')</footer><script>' +
+    'var WAGI=' + JSON.stringify(j.skillsW || {}) + ';' +
+    'var ILE=' + (DATA.jobs || []).length + ';' +
+    'var prof={};try{prof=JSON.parse(localStorage.getItem("rokujProfile")||"{}")||{};}catch(e){}' +
+    'function zapisz(){try{localStorage.setItem("rokujProfile",JSON.stringify(prof));}catch(e){}}' +
+    'function rysuj(){' +
+    'var z=0,n=0,suma=0,sw=0;' +
+    'document.querySelectorAll(".t[data-k]").forEach(function(t){' +
+    'var k=t.dataset.k,st=prof[k]||"",w=(WAGI[k]==="d")?0.4:1;' +
+    'n=n+1;sw=sw+w;' +
     't.className="t"+(st==="have"?" mam":st==="learn"?" nab":st==="never"?" nie":"");' +
-    'if(st==="have"){z++;suma+=w}else if(st==="learn"){z++;suma+=w*0.5}else if(st==="never"){z++}});' +
-    'var proc=sw?Math.round(100*suma/sw):0;var el=document.getElementById("licznik");if(el===null)return;' +
-    'el.innerHTML=z?("Oznaczono <b>"+z+" z "+n+"</b> wymaga&nacute; &rarr; rokujesz tu na ok. <b>"+proc+"%</b><br>' +
-    '<a href="/">Sprawd&zacute;, w ilu z "+ILE+" ofert rokujesz jeszcze wy&zdot;ej &rarr;</a>")' +
-    ':"Kliknij wymaganie, kt&oacute;re spe&lstrok;niasz &mdash; policzymy na &zdot;ywo, na ile rokujesz. Kolejne klikni&eogon;cia: mam &rarr; mog&eogon; naby&cacute; &rarr; nie nab&eogon;d&eogon; &rarr; odznacz."}' +
-    'document.querySelectorAll(".t[data-k]").forEach(function(t){t.addEventListener("click",function(){' +
-    'var k=this.dataset.k,st=prof[k];if(st===undefined)prof[k]="have";else if(st==="have")prof[k]="learn";else if(st==="learn")prof[k]="never";else delete prof[k];' +
-    'zapisz();rysuj()})});rysuj();</scr' + 'ipt></body></html>');
+    'if(st==="have"){z=z+1;suma=suma+w;}' +
+    'else if(st==="learn"){z=z+1;suma=suma+w*0.5;}' +
+    'else if(st==="never"){z=z+1;}' +
+    '});' +
+    'var proc=sw?Math.round(100*suma/sw):0;' +
+    'var el=document.getElementById("licznik");' +
+    'if(el===null){return;}' +
+    'var tekst;' +
+    'if(z===0){tekst="Kliknij wymaganie, które spełniasz — policzymy na żywo, na ile rokujesz. Kolejne kliknięcia: mam → mogę nabyć → nie nabędę → odznacz.";}' +
+    'else{tekst="Oznaczono <b>"+z+" z "+n+"</b> wymagań → rokujesz tu na ok. <b>"+proc+"%</b>";' +
+    'tekst=tekst+"<br><a href=/>Sprawdź, w ilu z "+ILE+" ofert rokujesz jeszcze wyżej →</a>";}' +
+    'el.innerHTML=tekst;' +
+    '}' +
+    'document.querySelectorAll(".t[data-k]").forEach(function(t){' +
+    't.addEventListener("click",function(){' +
+    'var k=this.dataset.k,st=prof[k];' +
+    'if(st===undefined){prof[k]="have";}' +
+    'else if(st==="have"){prof[k]="learn";}' +
+    'else if(st==="learn"){prof[k]="never";}' +
+    'else{delete prof[k];}' +
+    'zapisz();rysuj();' +
+    '});});' +
+    'rysuj();' +
+    '</scr' + 'ipt></body></html>');
 });
 /* ---------- MAPA STRONY dla Google (/sitemap.xml) ---------- */
 app.get('/sitemap.xml', (req, res) => {
