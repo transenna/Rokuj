@@ -855,7 +855,8 @@ app.get('/oferta/:id', (req, res) => {
     'var tekst;' +
     'if(z===0){tekst="Kliknij wymaganie, które spełniasz — policzymy na żywo, na ile rokujesz. Kolejne kliknięcia: mam → mogę nabyć → nie nabędę → odznacz.";}' +
     'else{tekst="Oznaczono <b>"+z+" z "+n+"</b> wymagań → rokujesz tu na ok. <b>"+proc+"%</b>";' +
-    'tekst=tekst+"<br><a href=/>Sprawdź, w ilu z "+ILE+" ofert rokujesz jeszcze wyżej →</a>";}' +
+    'var zach=(proc>=100)?"Sprawdź, w ilu z "+ILE+" ofert rokujesz równie wysoko →":"Sprawdź, w ilu z "+ILE+" ofert rokujesz jeszcze wyżej →";' +
+    'tekst=tekst+"<br><a href=/>"+zach+"</a>";}' +
     'el.innerHTML=tekst;' +
     '}' +
     'document.querySelectorAll(".t[data-k]").forEach(function(t){' +
