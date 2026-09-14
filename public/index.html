@@ -169,7 +169,7 @@ input[type=range]{accent-color:var(--accent);padding:0;border:none;}
   border:1px dashed var(--line);border-radius:var(--radius);padding:44px 20px;}
 footer{text-align:center;color:#9CA3AF;font-size:.8rem;padding:26px;}
 footer a{color:#9CA3AF;}
-#btnAdvise{background:#E8940A;color:#FFFFFF;border-color:#E8940A;font-weight:700;}
+#btnAdvise{background:#E8940A;color:#FFFFFF;border-color:#E8940A;font-weight:700;margin-left:auto;order:9;}
 #btnAdvise:hover{background:#D08508;color:#FFFFFF;border-color:#D08508;}
 </style>
 </head>
@@ -209,12 +209,7 @@ footer a{color:#9CA3AF;}
     <div class="filters">
       <input id="fSearch" type="text" placeholder="Stanowisko lub firma">
       <input id="fLocation" type="text" placeholder="Lokalizacja">
-      <select id="fSort">
-        <option value="score">Sortuj: rokowanie</option>
-        <option value="title">Sortuj: nazwa</option>
-        <option value="salary">Sortuj: zarobki</option>
-      </select>
-      <button id="fDir" title="Zmień kierunek sortowania">↓</button>
+      
 
            <button id="fRemote">
         <svg class="ic" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7M5 9.5V20h14V9.5"/></svg>
@@ -245,6 +240,14 @@ footer a{color:#9CA3AF;}
         <option value="staż/praktyka">staż / praktyka</option>
       </select>
        
+      </div>
+    <div class="filters">
+      <select id="fSort">
+        <option value="score">Sortuj: rokowanie</option>
+        <option value="title">Sortuj: nazwa</option>
+        <option value="salary">Sortuj: zarobki</option>
+      </select>
+      <button id="fDir" title="Zmień kierunek sortowania">↓</button>
       <button id="btnAdvise">💡 Co mi podpowiesz?</button>
       <span class="range-wrap">
         min. rokowanie
