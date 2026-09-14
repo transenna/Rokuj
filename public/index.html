@@ -144,13 +144,6 @@ input[type=range]{accent-color:var(--accent);padding:0;border:none;}
 .tag{display:inline-block;background:#F0F1F3;color:#374151;
   border-radius:999px;padding:3px 11px;font-size:.78rem;margin:2px 4px 2px 0;}
 .job .tag{cursor:pointer;}
-.tagmenu{position:fixed;z-index:60;background:#fff;border:1px solid #E5E7EB;border-radius:10px;box-shadow:0 4px 14px rgba(16,24,40,.18);padding:6px;display:flex;flex-direction:column;gap:4px;min-width:160px;}
-.tagmenu button{border:0;background:#F7F8FA;border-radius:8px;padding:9px 11px;font:inherit;font-size:.84rem;cursor:pointer;text-align:left;}
-.tagmenu .tm-have:hover{background:#FAEDCB;color:#B07800;}
-.tagmenu .tm-learn:hover{background:#FCEBD3;color:#8F4A04;}
-.tagmenu .tm-never:hover{background:#FDEAEA;color:#DC2626;}
-.tagmenu .tm-zero:hover{background:#F0F1F3;}
-.tagmenu .akt{outline:2px solid #E8A317;}
 .fav{cursor:pointer;color:#C9CDD4;font-size:1.05em;user-select:none;}
 .fav:hover{color:#E8A317;}
 .fav.on{color:#E8A317;}
@@ -780,50 +773,23 @@ const sfTimer = setInterval(function(){ if(initSkillFinder()) clearInterval(sfTi
   new MutationObserver(function(){ rysuj(); }).observe(aside, { childList: true });
   rysuj();
 })();
-/* ---------- KLIKALNE TAGI: mini-menu mam / moge nabyc / nie nabede ---------- */
-(function(){
-  var menu = null;
-  function zamknij(){ if(menu){ menu.remove(); menu = null; } }
-  function odswiezTagi(){
-    document.querySelectorAll('#jobs .tag').forEach(function(el){
-      var m = (el.getAttribute('title') || '').match(/liczy się jako: (.+)$/);
-      var k = m ? m.at(1) : el.textContent.trim();
-      el.className = 'tag ' + (userSkills[k] || '');
-    });
-  }
-  document.getElementById('jobs').addEventListener('click', function(ev){
-    var tag = ev.target.closest ? ev.target.closest('.tag') : null;
-    if(!tag) return;
-    var m = (tag.getAttribute('title') || '').match(/liczy się jako: (.+)$/);
-    var klucz = m ? m.at(1) : tag.textContent.trim();
-    zamknij();
-    menu = document.createElement('div');
-    menu.className = 'tagmenu';
-    var stan = userSkills[klucz] || '';
-    var opcje = [ ['have', '✓ mam'], ['learn', '+ mogę nabyć'], ['never', '✕ nie nabędę'] ];
-    if(stan) opcje.push(['', '↺ odznacz']);
-    opcje.forEach(function(o){
-      var b = document.createElement('button');
-      b.className = 'tm-' + (o.at(0) || 'zero') + (stan === o.at(0) ? ' akt' : '');
-      b.textContent = o.at(1);
-      b.addEventListener('click', function(e2){
-        e2.stopPropagation();
-        if(o.at(0)) userSkills[klucz] = o.at(0); else delete userSkills[klucz];
-        saveProfile();
-        renderSkills();
-        odswiezTagi();   /* tylko kolory - lista NIE przetasowuje sie pod reka */
-        zamknij();
-      });
-      menu.appendChild(b);
-    });
-    menu.style.left = Math.min(ev.clientX, window.innerWidth - 180) + 'px';
-    menu.style.top = (ev.clientY + 10) + 'px';
-    document.body.appendChild(menu);
+/* ---------- KLIKALNE TAGI: buduj profil prosto z ofert ---------- */
+document.getElementById('jobs').addEventListener('click', function(ev){
+  var tag = ev.target.closest ? ev.target.closest('.tag') : null;
+  if(!tag) return;
+  var m = (tag.getAttribute('title') || '').match(/liczy się jako: (.+)$/);
+  var klucz = m ? m.at(1) : tag.textContent.trim();
+  var stan = userSkills[klucz];
+  var nowy = !stan ? 'have' : (stan === 'have' ? 'learn' : (stan === 'learn' ? 'never' : null));
+  if(nowy) userSkills[klucz] = nowy; else delete userSkills[klucz];
+  saveProfile();
+  renderSkills();
+  /* NIE przeszukujemy od nowa - lista stoi w miejscu, odswiezamy tylko kolory tagow */
+  document.querySelectorAll('#jobs .tag').forEach(function(el){
+    var m2 = (el.getAttribute('title') || '').match(/liczy się jako: (.+)$/);
+    var k2 = m2 ? m2.at(1) : el.textContent.trim();
+    el.className = 'tag ' + (userSkills[k2] || '');
   });
-  document.addEventListener('click', function(ev){
-    if(menu && !menu.contains(ev.target) && !(ev.target.closest && ev.target.closest('.tag'))) zamknij();
-  });
-})();
 });
 /* przycisk "zapisane" obok "z zarobkami" (kopiuje jego wyglad) */
 (function(){
