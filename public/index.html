@@ -784,7 +784,12 @@ document.getElementById('jobs').addEventListener('click', function(ev){
   if(nowy) userSkills[klucz] = nowy; else delete userSkills[klucz];
   saveProfile();
   renderSkills();
-  doSearch(true);
+  /* NIE przeszukujemy od nowa - lista stoi w miejscu, odswiezamy tylko kolory tagow */
+  document.querySelectorAll('#jobs .tag').forEach(function(el){
+    var m2 = (el.getAttribute('title') || '').match(/liczy się jako: (.+)$/);
+    var k2 = m2 ? m2.at(1) : el.textContent.trim();
+    el.className = 'tag ' + (userSkills[k2] || '');
+  });
 });
 /* przycisk "zapisane" obok "z zarobkami" (kopiuje jego wyglad) */
 (function(){
