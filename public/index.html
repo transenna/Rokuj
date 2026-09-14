@@ -209,7 +209,6 @@ footer a{color:#9CA3AF;}
     <div class="filters">
       <input id="fSearch" type="text" placeholder="Stanowisko lub firma">
       <input id="fLocation" type="text" placeholder="Lokalizacja">
-      <select id="fPortal"><option value="">Wszystkie portale</option></select>
       <select id="fSort">
         <option value="score">Sortuj: rokowanie</option>
         <option value="title">Sortuj: nazwa</option>
@@ -310,7 +309,6 @@ async function load(){
   }
   let opts = '<option value="">Wszystkie portale</option>';
   for(const p of Object.keys(META.portals).sort()){ opts += '<option>' + esc(p) + '</option>'; }
-  document.getElementById('fPortal').innerHTML = opts;
   renderSkills();
   doSearch(true);
 }
@@ -493,7 +491,7 @@ function odmianaOfert(n){ return n === 1 ? '1 ofercie' : n + ' ofertach'; }
   const body = {
     q: document.getElementById('fSearch').value,
     loc: document.getElementById('fLocation').value,
-    portal: document.getElementById('fPortal').value,
+    portal: '',
     sort: document.getElementById('fSort').value,
     dir: sortDir,
     minScore: parseInt(document.getElementById('fScore').value, 10),
@@ -551,7 +549,6 @@ function odmianaOfert(n){ return n === 1 ? '1 ofercie' : n + ' ofertach'; }
       var akt = [];
       if(document.getElementById('fSearch').value.trim()) akt.push('szukana fraza „' + esc(document.getElementById('fSearch').value.trim()) + '"');
       if(document.getElementById('fLocation').value.trim()) akt.push('lokalizacja „' + esc(document.getElementById('fLocation').value.trim()) + '"');
-      if(document.getElementById('fPortal').value) akt.push('wybrany portal');
       if(remoteOnly) akt.push('tylko zdalnie');
       if(salaryOnly) akt.push('tylko z zarobkami');
       if(parseInt(document.getElementById('fMinSalary').value, 10) > 0) akt.push('min. zarobki ' + document.getElementById('fMinSalary').value + ' zł');
@@ -617,7 +614,6 @@ let debTimer = null;
 function debouncedSearch(){ clearTimeout(debTimer); debTimer = setTimeout(function(){ doSearch(true); }, 250); }
 document.getElementById('fSearch').addEventListener('input', debouncedSearch);
 document.getElementById('fLocation').addEventListener('input', debouncedSearch);
-document.getElementById('fPortal').addEventListener('change', function(){ doSearch(true); });
 document.getElementById('fSort').addEventListener('change', function(){ doSearch(true); });
 document.getElementById('fDir').addEventListener('click', function(){
   sortDir = (sortDir === 'desc') ? 'asc' : 'desc';
