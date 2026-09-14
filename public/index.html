@@ -800,7 +800,7 @@ const sfTimer = setInterval(function(){ if(initSkillFinder()) clearInterval(sfTi
     menu = document.createElement('div');
     menu.className = 'tagmenu';
     var stan = userSkills[klucz] || '';
-    var opcje = [ ['have', '\u2713 mam'], ['learn', '+ moge nabyc'], ['never', '\u2715 nie nabede'] ];
+    var opcje = [ ['have', '\u2713 mam'], ['learn', '+ mogę nabyć'], ['never', '\u2715 nie nabędę'] ];
     if(stan) opcje.push(['', '\u21ba odznacz']);
     opcje.forEach(function(o){
       var b = document.createElement('button');
