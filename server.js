@@ -7,7 +7,43 @@ const app = express();
 const { analyzeAll, groupSkills, groupName, loadGroups, normalizeEduDirs, eduDirName, normalizeExpDirs, expDirName } = require('./ai');
 loadGroups();
 const PORT = process.env.PORT || 3000;
-
+/* ---------- KURTYNA: tryb "portal w przygotowaniu" (KURTYNA=1 w .env) ---------- */
+const KURTYNA = process.env.KURTYNA === '1';
+const KURTYNA_HTML = '<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8">' +
+  '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+  '<title>Rokuj.pl – portal w przygotowaniu</title>' +
+  '<link rel="icon" href="/favicon.png">' +
+  '<style>body{margin:0;font-family:\'Segoe UI\',system-ui,Arial,sans-serif;background:#F7F8FA;color:#1F2328;}' +
+  '.pas{background:#16304D;padding:14px 20px;}.pas img{height:44px;display:block;margin:0 auto;}' +
+  'main{max-width:560px;margin:60px auto;padding:0 20px;text-align:center;}' +
+  'h1{color:#1E3A5C;font-size:1.5rem;}p{line-height:1.6;color:#4B5563;}' +
+  '.zloty{color:#B07800;font-weight:600;}</style></head>' +
+  '<body><div class="pas"><img src="/logo2.png" alt="Rokuj.pl"></div>' +
+  '<main><h1>Portal w przygotowaniu</h1>' +
+  '<p>Trwa integracja źródeł ofert i dopinanie formalności.</p>' +
+  '<p class="zloty">Zapraszamy wkrótce!</p>' +
+  '<p>Kontakt: kontakt@rokuj.pl</p></main></body></html>';
+if (KURTYNA) {
+  app.use((req, res, next) => {
+    const p = req.path;
+    if (p === '/' || p === '/index.html') return res.send(KURTYNA_HTML);
+    if (p.startsWith('/oferta/')) {
+      return res.status(404).send('<!DOCTYPE html><html lang="pl"><head><meta charset="UTF-8">' +
+        '<meta name="robots" content="noindex"><title>Oferta niedostępna – Rokuj.pl</title></head>' +
+        '<body style="font-family:system-ui,Arial,sans-serif;text-align:center;padding:60px 20px;">' +
+        '<h1>Oferta chwilowo niedostępna</h1><p>Portal w przygotowaniu – zapraszamy wkrótce.</p></body></html>');
+    }
+    if (p === '/sitemap.xml') {
+      return res.type('application/xml').send('<?xml version="1.0" encoding="UTF-8"?>' +
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' +
+        '<url><loc>https://rokuj.pl/</loc></url></urlset>');
+    }
+    if (p === '/api/search') return res.json({ total: 0, page: 1, size: 0, jobs: [], prog70: 0 });
+    if (p === '/api/advise') return res.json({ items: [], bezEdu: false });
+    if (p === '/api/meta') return res.json({ total: 0, cats: {} });
+    return next();
+  });
+}
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '1mb' }));
 
